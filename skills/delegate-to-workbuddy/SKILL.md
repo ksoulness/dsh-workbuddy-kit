@@ -15,6 +15,8 @@ description: 当需要把有明确范围的本机任务交给 WorkBuddy（腾讯
 
 ## 铁律
 
+- **工作目录跟随 DSH 当前会话**：派发时不要写死路径。省略 `workspace` 即用本会话当前工作目录（我在 `E:\Code\acme-app` 就在那儿开工，我 `cd` 到别处它就跟着走；解析不到会直接报错）。`workspace` 只在需要故意换目录时显式传。
+
 1. **只给路径和范围，不贴内容**：源码、diff、zip 不进任务文本，让 WorkBuddy 自己读工作区。
 2. **必须等到终态**：`wb_wait_run` 返回 `hostMustCallWaitRunAgain: true` 就是没结束，继续等；超时不是终态。
 3. **自己复核**：读 `assistantText` 不够，用 `wb_read_session` 或直接读文件核对行号与结论。

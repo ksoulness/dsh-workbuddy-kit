@@ -152,6 +152,8 @@ node bin/wb.mjs unpublish --session <sessionId>    # 只删自己插的那两行
 工具：`wb_publish_session` / `wb_unpublish_session` / `wb_list_published`。
 `publish` 也接受 `--run <runId>`，直接从派发台账解析 sessionId。派发时加 `publishToApp: true`（CLI 是 `--publish`），跑完会**自动**发布，结果记在运行的 `publishResult` 字段里——发布失败不会改写运行的终态。
 
+> **工作区归属 = DSH 会话当前的工作目录**（不是写死的路径）。省略 `workspace` 时插件每次调用都会向 `workingDirectory` 服务要当前目录，所以你在 DSH 里 `cd` 到哪，WorkBuddy 就在哪开工；解析不到就报错，不会退回 harness 安装目录。`workspace` 只在你需要**故意**换目录时显式传。
+>
 > **工作区归属由 `workspace` 决定**：桌面 App 按会话的 `cwd` 分组，所以派发时把 `workspace` 设成你平时用 DSH 的那个目录（例如 `E:\Code\acme-app`），这个会话就会出现在同一个工作区下；换成别的目录，就会多出一个新工作区。`wb_start_run` / `wb_start_review` 现在 `workspace` 可省略，省略时用当前 DSH 会话的工作目录（插件注入 `workingDirectory` 服务）；解析不到时**直接报错**而不是退回 `process.cwd()`——那是 harness 安装目录，发到那里会让 App 多出一个垃圾工作区。
 
 写什么：一行 `sessions`（`id`、`cwd` 归一成 `E:/Code/x`、`user_id` 取当前登录用户、`title`、`status`、`created_at`/`updated_at`/`last_activity_at`、`transport='local'`、`source_mode='craft'`、`mode='craft'`、`model`）+ 一行 `session_usage`（`size` = 转录字节数）。**转录文件一个字节都不改。**
@@ -194,6 +196,7 @@ node bin/wb.mjs unpublish --session <sessionId>    # 只删自己插的那两行
 - ✅ MCP stdio 真实握手（`initialize` + `tools/list`）；
 - ✅ 在真实 cordis 里挂载插件（`inject: ['tools']`）→ 15 个工具全部通过 `dsh-tools` 自己的 `assertObjectJsonSchema` / `assertSupportedJsonSchema` 校验（`npm run verify`）；
 - ✅ 委派真实产出：WorkBuddy 按任务在 `E:\Code\demo` 写出 `CHEATSHEET.md`，其中 5 条命令逐字核对全部命中源文档（`README.md:71/72/85/94/95`）；另一次运行由 `workspaceChanges` 抓到新增 `demo-workspace-change.md`（`addedCount: 1`）；
+- ✅ 跟随 DSH 工作目录：同一会话在 E:\Code\acme-app 时省略 workspace → 落在 E:\Code\acme-app；把 DSH cwd 切到 E:\Code\dsh-workbuddy-kit 后再派发 → 落在 E:\Code\dsh-workbuddy-kit（projectSlug: e-Code-dsh-workbuddy-kit），没有写死路径；
 - ✅ 诚实的失败样本：跨 `--add-dir` 目录读取被拦（即使 `-y`），运行层仍 `succeeded` 但零改动 —— 证明「终态 ≠ 完成」，必须看 `workspaceChanges` / 文件；
 - ✅ 桌面调度器真实读取：6 条生效 + 3 条软删、1110 次运行（1015 成功 / 95 失败，成功率 0.9144）、失败码分布与本机 WorkBuddy 界面一致；
 - ✅ `dsh plugin --profile web add .` 装进本机 profile，`dsh --profile web --dump-config` 出现 `dsh-workbuddy-kit` 行。
