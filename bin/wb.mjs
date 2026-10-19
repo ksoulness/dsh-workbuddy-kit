@@ -88,6 +88,9 @@ async function dispatch(toolName, flags) {
     task: flags.task,
     ...(typeof flags.model === 'string' ? { model: flags.model } : {}),
     ...(typeof flags['max-turns'] === 'string' ? { maxTurns: Number(flags['max-turns']) } : {}),
+    ...(typeof flags['add-dir'] === 'string' ? { addDirs: [flags['add-dir']] } : {}),
+    ...(typeof flags['permission-mode'] === 'string' ? { permissionMode: flags['permission-mode'] } : {}),
+    ...(flags['skip-permissions'] === true ? { skipPermissions: true } : {}),
   })
   print({ started })
   let run = started

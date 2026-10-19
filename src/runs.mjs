@@ -10,6 +10,7 @@
  */
 
 import { createHash } from 'node:crypto'
+import { spawnSync } from 'node:child_process'
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -26,6 +27,82 @@ const JOURNAL_TEXT_LIMIT = 20_000
 
 /** Cap for re-reading a raw stream log during recovery. */
 const STREAM_READ_LIMIT = 32 * 1024 * 1024
+
+/** Cap on git entries captured on either side of a dispatch. */
+const GIT_ENTRY_LIMIT = 2000
+
+/**
+ * Snapshot `git status --porcelain` for a workspace.
+ *
+ * This is acceptance evidence, not a content diff: it answers "did anything in
+ * the workspace change while the agent ran", which is the part a model's own
+ * summary cannot be trusted for. Failures are reported, never guessed.
+ *
+ * @param {string} workspace
+ * @param {{ spawnSyncFn?: typeof spawnSync }} [options]
+ * @returns {{ available: boolean, reason?: string, entries?: Array<[string, string]>, truncated?: boolean }}
+ */
+export function captureGitStatus(workspace, options = {}) {
+  const run = options.spawnSyncFn ?? spawnSync
+  if (!existsSync(join(workspace, '.git'))) return { available: false, reason: 'workspace is not a git repository' }
+  const result = run('git', ['-C', workspace, 'status', '--porcelain=v1', '--untracked-files=all'], {
+    encoding: 'utf8',
+    timeout: 10_000,
+    windowsHide: true,
+    maxBuffer: 8 * 1024 * 1024,
+  })
+  if (result.error || typeof result.stdout !== 'string') {
+    return { available: false, reason: String(result.error?.message ?? 'git status failed') }
+  }
+  if (result.status !== 0) return { available: false, reason: `git status exited ${result.status}: ${String(result.stderr ?? '').trim().slice(0, 200)}` }
+  const entries = []
+  let truncated = false
+  for (const line of result.stdout.split(/\r?\n/)) {
+    if (line.trim() === '') continue
+    if (entries.length >= GIT_ENTRY_LIMIT) {
+      truncated = true
+      break
+    }
+    const code = line.slice(0, 2)
+    const path = line.slice(3).trim()
+    if (path !== '') entries.push([path, code])
+  }
+  return { available: true, entries, truncated }
+}
+
+/**
+ * Compare two git-status snapshots into acceptance evidence.
+ * @param {{ available: boolean, entries?: Array<[string, string]> }} before
+ * @param {{ available: boolean, entries?: Array<[string, string]> }} after
+ * @returns {{ available: boolean, reason?: string, added?: string[], statusChanged?: string[], disappeared?: string[], unchangedCount?: number, note?: string }}
+ */
+export function diffGitStatus(before, after) {
+  if (!before.available || !after.available) {
+    return { available: false, reason: before.reason ?? after.reason ?? 'git status unavailable' }
+  }
+  const beforeMap = new Map(before.entries ?? [])
+  const afterMap = new Map(after.entries ?? [])
+  const added = []
+  const statusChanged = []
+  for (const [path, code] of afterMap) {
+    const previous = beforeMap.get(path)
+    if (previous === undefined) added.push(path)
+    else if (previous !== code) statusChanged.push(path)
+  }
+  const disappeared = [...beforeMap.keys()].filter((path) => !afterMap.has(path))
+  const empty = added.length === 0 && statusChanged.length === 0 && disappeared.length === 0
+  return {
+    available: true,
+    added,
+    statusChanged,
+    disappeared,
+    unchangedCount: afterMap.size - added.length - statusChanged.length,
+    note:
+      'git porcelain comparison only: it shows that paths appeared or changed state, not what the agent wrote inside them.' +
+      ' Ignored paths (.gitignore) are invisible to this check.' +
+      (empty ? ' No visible change — if the task targeted an ignored path (for example .local/), confirm it directly before trusting "no change".' : ''),
+  }
+}
 
 /**
  * Deterministic run id from an idempotency key, or a timestamped random one.
@@ -217,6 +294,7 @@ export async function startRun(input, deps = {}) {
     journal: paths.journal,
     streamLog: paths.stream,
     stderrLog: paths.stderr,
+    gitBaseline: captureGitStatus(workspace),
   }
   saveRun(stateDir, run)
 
@@ -368,6 +446,10 @@ export function finalizeRun(input) {
     updated.stateSource = 'process-exit'
   }
   updated.terminalAt = new Date().toISOString()
+  updated.workspaceChanges = diffGitStatus(
+    run.gitBaseline ?? { available: false, reason: 'no baseline snapshot' },
+    captureGitStatus(run.workspace),
+  )
   saveRun(stateDir, updated)
   try {
     const body = [
@@ -381,6 +463,20 @@ export function finalizeRun(input) {
       `- workspace: ${updated.workspace}`,
       `- permissionMode: ${updated.permissionMode}`,
       `- toolCalls: ${updated.toolUseCount}`,
+      `- workspaceChanges: ${
+        updated.workspaceChanges?.available
+          ? `${(updated.workspaceChanges.added ?? []).length} added, ${(updated.workspaceChanges.statusChanged ?? []).length} changed`
+          : `unavailable (${updated.workspaceChanges?.reason ?? 'unknown'})`
+      }`,
+      '',
+      '## workspace changes (git porcelain)',
+      '',
+      ...(updated.workspaceChanges?.available
+        ? [
+            ...(updated.workspaceChanges.added ?? []).map((path) => `- added: ${path}`),
+            ...(updated.workspaceChanges.statusChanged ?? []).map((path) => `- changed: ${path}`),
+          ]
+        : ['(not a git workspace or git unavailable)']),
       '',
       '## assistant text',
       '',

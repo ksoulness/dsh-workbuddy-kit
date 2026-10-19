@@ -39,6 +39,15 @@
 
 `move` 模式会移动厂商转录，属于显式的、可逆的破坏性操作；桌面端的「已归档」索引不会被本工具包修改。
 
+## 终态 ≠ 任务完成
+
+state: succeeded 只说明**这次 CLI 运行干净结束**（stopReason: end_turn）。它不代表任务做成了。实测过三次：
+
+- 工作区外读文件被拒（即使加了 -y，跨 --add-dir 目录的读取仍被拦），模型诚实回答「无法完成」→ 运行层 succeeded，实际零改动；
+- 工作区内读+写正常 → 文件确实生成，逐字核对通过。
+
+所以本工具包给的是**证据**，不是判决：workspaceChanges（git porcelain 前后对比）、	oolCalls、ssistantText、sessionFile。注意 workspaceChanges 只覆盖非 ignore 路径——写进 .local/ 这类 gitignore 目录时它会显示「无变化」，此时必须直接看文件。
+
 ## 调度器只读
 
 桌面调度器（`workbuddy.db` 的三张 automation 表）只用 `readOnly: true` 打开。理由不是洁癖：桌面进程持有内存中的调度状态，直写 sqlite 会让它的界面与库不一致，甚至把下一次触发时间算错。

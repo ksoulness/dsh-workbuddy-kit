@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 
 import { buildInvocation, PERMISSION_MODES } from '../src/cli.mjs'
-import { makeRunId, summarizeJournalStream, TERMINAL_STATES } from '../src/runs.mjs'
+import { captureGitStatus, diffGitStatus, makeRunId, summarizeJournalStream, TERMINAL_STATES } from '../src/runs.mjs'
 
 const discovery = {
   cliEntry: 'D:\\wb\\cli\\bin\\codebuddy',
@@ -110,4 +110,37 @@ test('skipPermissions is opt-in and never implied', () => {
   assert.equal(without.args.includes('-y'), false)
   const withFlag = buildInvocation({ discovery, prompt: 'p', workspace: 'E:\\Code\\demo', skipPermissions: true })
   assert.equal(withFlag.args.includes('-y'), true)
+})
+
+test('diffGitStatus reports added, changed, and disappeared paths', () => {
+  const before = { available: true, entries: [['a.md', ' M'], ['b.md', '??']] }
+  const after = { available: true, entries: [['a.md', 'M '], ['c.md', '??'], ['b.md', '??']] }
+  const diff = diffGitStatus(before, after)
+  assert.deepEqual(diff.added, ['c.md'])
+  assert.deepEqual(diff.statusChanged, ['a.md'])
+  assert.deepEqual(diff.disappeared, [])
+  assert.equal(diff.unchangedCount, 1)
+  assert.match(diff.note, /not what the agent wrote/)
+})
+
+test('diffGitStatus surfaces a missing snapshot instead of claiming cleanliness', () => {
+  const diff = diffGitStatus({ available: false, reason: 'workspace is not a git repository' }, { available: true, entries: [] })
+  assert.deepEqual(diff, { available: false, reason: 'workspace is not a git repository' })
+})
+
+test('captureGitStatus parses porcelain and tolerates failures', () => {
+  const workspace = mkdtempSync(join(tmpdir(), 'dwb-git-'))
+  const notGit = captureGitStatus(workspace)
+  assert.equal(notGit.available, false)
+  assert.match(notGit.reason, /not a git repository/)
+
+  mkdirSync(join(workspace, '.git'))
+  const parsed = captureGitStatus(workspace, {
+    spawnSyncFn: () => ({ status: 0, stdout: ' M a.md\n?? b.md\n', stderr: '' }),
+  })
+  assert.deepEqual(parsed, { available: true, entries: [['a.md', ' M'], ['b.md', '??']], truncated: false })
+
+  const failed = captureGitStatus(workspace, { spawnSyncFn: () => ({ status: 128, stdout: '', stderr: 'fatal: nope' }) })
+  assert.equal(failed.available, false)
+  assert.match(failed.reason, /exited 128/)
 })

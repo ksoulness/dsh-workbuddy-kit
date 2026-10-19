@@ -106,8 +106,28 @@ export function summarizeRun(run, options = {}) {
     base.promptPreview = run.promptPreview ?? null
     base.authorizationBasis = run.authorizationBasis ?? null
     base.streamLog = run.streamLog ?? null
+    base.workspaceChanges = boundGitEvidence(run.workspaceChanges)
   }
   return base
+}
+
+/**
+ * Bound a git-status comparison to what a model should read.
+ * @param {any} changes
+ * @returns {any}
+ */
+function boundGitEvidence(changes) {
+  if (!changes) return { available: false, reason: 'not recorded for this run' }
+  if (!changes.available) return { available: false, reason: changes.reason ?? 'git status unavailable' }
+  return {
+    available: true,
+    added: (changes.added ?? []).slice(0, 50),
+    statusChanged: (changes.statusChanged ?? []).slice(0, 50),
+    disappeared: (changes.disappeared ?? []).slice(0, 50),
+    addedCount: (changes.added ?? []).length,
+    changedCount: (changes.statusChanged ?? []).length,
+    note: changes.note,
+  }
 }
 
 /**

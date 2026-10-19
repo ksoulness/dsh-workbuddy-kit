@@ -157,9 +157,11 @@ node bin/wb.mjs automation-health
 - ✅ 真实实施派发 → `succeeded` / `end_turn`，工作区里确实多出 `hello.txt`，内容与任务要求逐字一致（`DWB-RUN-OK`）；
 - ✅ 真实归档两次：`archived:true`，15124 / 7973 字节，`sha256:a0c6cc74…` / `9887ba08…`；
 - ✅ `wb_doctor` 正确识别安装路径、自带 Node、`liteBundleOnly`、自定义模型；
-- ✅ `node --test` 47/47：流解析、工程名映射、schema 子集、MCP 握手、归档的全部拒绝分支、调度器只读读取（含软删除与失败码）；
+- ✅ `node --test` 50/50：流解析、工程名映射、schema 子集、MCP 握手、归档的全部拒绝分支、调度器只读读取（含软删除与失败码）、git 侧改动证据；
 - ✅ MCP stdio 真实握手（`initialize` + `tools/list`）；
 - ✅ 在真实 cordis 里挂载插件（`inject: ['tools']`）→ 15 个工具全部通过 `dsh-tools` 自己的 `assertObjectJsonSchema` / `assertSupportedJsonSchema` 校验（`npm run verify`）；
+- ✅ 委派真实产出：WorkBuddy 按任务在 `E:\Code\demo` 写出 `CHEATSHEET.md`，其中 5 条命令逐字核对全部命中源文档（`README.md:71/72/85/94/95`）；另一次运行由 `workspaceChanges` 抓到新增 `demo-workspace-change.md`（`addedCount: 1`）；
+- ✅ 诚实的失败样本：跨 `--add-dir` 目录读取被拦（即使 `-y`），运行层仍 `succeeded` 但零改动 —— 证明「终态 ≠ 完成」，必须看 `workspaceChanges` / 文件；
 - ✅ 桌面调度器真实读取：6 条生效 + 3 条软删、1110 次运行（1015 成功 / 95 失败，成功率 0.9144）、失败码分布与本机 WorkBuddy 界面一致；
 - ✅ `dsh plugin --profile web add .` 装进本机 profile，`dsh --profile web --dump-config` 出现 `dsh-workbuddy-kit` 行。
 
