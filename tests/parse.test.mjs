@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 
-import { createParser, flattenContent, readHeadTail, summarizeSessionFile } from '../src/parse.mjs'
+import { createParser, flattenContent, readHeadTail, readSessionTranscript, summarizeSessionFile } from '../src/parse.mjs'
 
 const INIT = {
   type: 'system',
@@ -133,4 +133,27 @@ test('readHeadTail truncates large transcripts but keeps both ends', () => {
   assert.equal(truncated, true)
   assert.ok(head.startsWith('HEAD'))
   assert.ok(tail.endsWith('TAIL\n') || tail.endsWith('TAIL'))
+})
+
+test('readSessionTranscript keeps CLI tool traffic (function_call entries)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dwb-fncalls-'))
+  const file = join(dir, 'session-2.jsonl')
+  const rows = [
+    { type: 'message', role: 'user', content: [{ type: 'input_text', text: '<user_query>查天气</user_query>' }], sessionId: 's-2', cwd: 'e:\\w' },
+    { type: 'file-history-snapshot', timestamp: 1, messageId: 'm1' },
+    { type: 'function_call', callId: 'c1', name: 'Bash', arguments: { command: 'curl -s https://example.test/a' } },
+    { type: 'function_call_result', callId: 'c1', name: 'Bash', status: 'completed', output: 'Stdout: {"temperature_2m":17.2}' },
+    { type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: '17.2 °C' }], sessionId: 's-2' },
+  ]
+  writeFileSync(file, `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`, 'utf8')
+  const transcript = readSessionTranscript(file, { readFile: (path) => readFileSync(path, 'utf8') })
+  assert.deepEqual(transcript.entries.map((entry) => entry.kind), ['message', 'file-history-snapshot', 'tool-call', 'tool-result', 'message'])
+  const call = transcript.entries[2]
+  assert.equal(call.name, 'Bash')
+  assert.equal(call.callId, 'c1')
+  assert.match(call.arguments, /curl -s/)
+  const result = transcript.entries[3]
+  assert.equal(result.status, 'completed')
+  assert.match(result.output, /17\.2/)
+  assert.equal(transcript.entries[4].text, '17.2 °C')
 })

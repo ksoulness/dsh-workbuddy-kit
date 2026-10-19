@@ -282,7 +282,47 @@ export function readSessionTranscript(file, io) {
       })
       continue
     }
+    // The CLI writes tool traffic as its own entry types, not as message
+    // content blocks: `function_call` / `function_call_result`. Ignoring them
+    // would make a session that did real work look like a single Q&A turn.
+    if (kind === 'function_call') {
+      entries.push({
+        kind: 'tool-call',
+        name: typeof entry.name === 'string' ? entry.name : 'unknown',
+        callId: typeof entry.callId === 'string' ? entry.callId : null,
+        arguments: bound(safeStringify(entry.arguments), 4000),
+        timestamp: typeof entry.timestamp === 'number' ? entry.timestamp : null,
+      })
+      continue
+    }
+    if (kind === 'function_call_result') {
+      const output = typeof entry.output === 'string' ? entry.output : safeStringify(entry.output)
+      entries.push({
+        kind: 'tool-result',
+        name: typeof entry.name === 'string' ? entry.name : 'unknown',
+        callId: typeof entry.callId === 'string' ? entry.callId : null,
+        status: typeof entry.status === 'string' ? entry.status : null,
+        output: bound(output, 8000),
+        timestamp: typeof entry.timestamp === 'number' ? entry.timestamp : null,
+      })
+      continue
+    }
     entries.push({ kind: typeof kind === 'string' ? kind : 'unknown', timestamp: typeof entry.timestamp === 'number' ? entry.timestamp : null })
   }
   return { sessionId, cwd, entries, truncated }
+}
+
+/**
+ * JSON-stringify for evidence text; never throws on cycles.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function safeStringify(value) {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
 }
