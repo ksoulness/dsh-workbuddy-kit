@@ -12,7 +12,7 @@
  * @module dsh-workbuddy-kit/mcp/server
  */
 
-import { realpathSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
 
@@ -21,8 +21,17 @@ import { tools, toolNames } from '../src/tools.mjs'
 /** MCP protocol revisions this server can speak (newest first). */
 const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05']
 
-/** Server identity reported at initialize. */
-const SERVER_INFO = { name: 'dsh-workbuddy-kit', version: '0.1.0' }
+/** Version reported at initialize, read from the manifest so a bump cannot drift. */
+const SERVER_VERSION = (() => {
+  try {
+    const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+    return typeof manifest.version === 'string' ? manifest.version : '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
+})()
+
+const SERVER_INFO = { name: 'dsh-workbuddy-kit', version: SERVER_VERSION }
 
 /**
  * Serialize one JSON-RPC message.
