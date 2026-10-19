@@ -215,7 +215,11 @@ const sessionTools = [
     parameters: {
       type: 'object',
       properties: {
-        workspace: { type: 'string', description: 'Absolute workspace directory the agent may work in.' },
+        workspace: {
+          type: 'string',
+          description:
+            'Absolute workspace directory the agent may work in. Defaults to the current DSH working directory, which keeps the session inside the same workspace the desktop app already groups it under.',
+        },
         task: { type: 'string', description: 'What WorkBuddy must do, including scope and acceptance criteria.' },
         model: { type: 'string', description: 'Optional model id; omit to use the WorkBuddy account default.' },
         permissionMode: {
@@ -234,14 +238,14 @@ const sessionTools = [
         sessionId: { type: 'string', description: 'Optional explicit session id; omit to let WorkBuddy create a fresh one.' },
         addDirs: { type: 'array', items: { type: 'string' }, description: 'Extra directories the agent may read.' },
       },
-      required: ['workspace', 'task'],
+      required: ['task'],
       additionalProperties: false,
     },
     handler: async (args, ctx) => {
       const run = await startRun(
         {
           kind: 'run',
-          workspace: args.workspace,
+          workspace: args.workspace ?? ctx.cwd ?? process.cwd(),
           prompt: args.task,
           model: args.model,
           permissionMode: args.permissionMode,
@@ -265,21 +269,24 @@ const sessionTools = [
     parameters: {
       type: 'object',
       properties: {
-        workspace: { type: 'string', description: 'Absolute workspace directory to review.' },
+        workspace: {
+          type: 'string',
+          description: 'Absolute workspace directory to review. Defaults to the current DSH working directory.',
+        },
         task: { type: 'string', description: 'What to review and what evidence to return (file paths, line numbers, conclusions).' },
         model: { type: 'string', description: 'Optional model id.' },
         maxTurns: { type: 'integer', description: 'Optional cap on agentic turns.' },
         idempotencyKey: { type: 'string', description: 'Reuse the same key to get the same runId.' },
         addDirs: { type: 'array', items: { type: 'string' }, description: 'Extra directories the agent may read.' },
       },
-      required: ['workspace', 'task'],
+      required: ['task'],
       additionalProperties: false,
     },
     handler: async (args, ctx) => {
       const run = await startRun(
         {
           kind: 'review',
-          workspace: args.workspace,
+          workspace: args.workspace ?? ctx.cwd ?? process.cwd(),
           prompt: args.task,
           model: args.model,
           maxTurns: args.maxTurns,
@@ -536,10 +543,11 @@ const publishTools = [
       type: 'object',
       properties: {
         sessionId: { type: 'string', description: 'Exact session id (the CLI session you want the app to list).' },
+        runId: { type: 'string', description: 'Alternatively, the runId from a dispatch; its sessionId is resolved for you.' },
         project: { type: 'string', description: 'Optional WorkBuddy project directory name to disambiguate.' },
         title: { type: 'string', description: 'Optional title override; defaults to the dispatched task summary.' },
       },
-      required: ['sessionId'],
+      required: [],
       additionalProperties: false,
     },
     handler: async (args, ctx) =>
@@ -547,6 +555,7 @@ const publishTools = [
         configDir: configDirOf(ctx),
         stateDir: stateDirOf(ctx),
         sessionId: args.sessionId,
+        runId: args.runId,
         project: args.project,
         title: args.title,
       }),

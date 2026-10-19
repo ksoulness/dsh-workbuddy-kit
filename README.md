@@ -150,6 +150,9 @@ node bin/wb.mjs unpublish --session <sessionId>    # 只删自己插的那两行
 ```
 
 工具：`wb_publish_session` / `wb_unpublish_session` / `wb_list_published`。
+`publish` 也接受 `--run <runId>`，直接从派发台账解析 sessionId。
+
+> **工作区归属由 `workspace` 决定**：桌面 App 按会话的 `cwd` 分组，所以派发时把 `workspace` 设成你平时用 DSH 的那个目录（例如 `E:\Code\acme-app`），这个会话就会出现在同一个工作区下；换成别的目录，就会多出一个新工作区。`wb_start_run` / `wb_start_review` 现在 `workspace` 可省略，省略时用当前 DSH 会话的工作目录。
 
 写什么：一行 `sessions`（`id`、`cwd` 归一成 `E:/Code/x`、`user_id` 取当前登录用户、`title`、`status`、`created_at`/`updated_at`/`last_activity_at`、`transport='local'`、`source_mode='craft'`、`mode='craft'`、`model`）+ 一行 `session_usage`（`size` = 转录字节数）。**转录文件一个字节都不改。**
 

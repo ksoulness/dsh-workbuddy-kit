@@ -134,7 +134,7 @@ export async function handleRequest(request, context) {
 export function serve(options = {}) {
   const input = options.input ?? process.stdin
   const output = options.output ?? process.stdout
-  const context = { env: options.env ?? process.env }
+  const context = { env: options.env ?? process.env, cwd: options.cwd ?? process.cwd() }
   const lines = createInterface({ input, crlfDelay: Infinity })
   return new Promise((resolve) => {
     let queue = Promise.resolve()

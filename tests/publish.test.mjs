@@ -147,3 +147,33 @@ test('unpublishSession refuses rows this kit did not publish', { skip }, async (
   assert.deepEqual([refused.unpublished, refused.reason], [false, 'not-published-by-this-kit'])
   assert.equal(readRow(configDir, 'desktop-1').row.id, 'desktop-1')
 })
+
+test('publishSession resolves a runId to its session', { skip }, async () => {
+  const { configDir, stateDir } = fixture()
+  const runId = 'wb-test-run'
+  mkdirSync(join(stateDir, 'runs'), { recursive: true })
+  writeFileSync(
+    join(stateDir, 'runs', `${runId}.json`),
+    JSON.stringify({
+      runId,
+      sessionId: SESSION,
+      projectSlug: 'e-Code-demo',
+      model: 'custom-local:m',
+      permissionMode: 'acceptEdits',
+      promptPreview: '来自 run 的标题',
+      createdAt: new Date().toISOString(),
+      terminalAt: new Date().toISOString(),
+    }),
+    'utf8',
+  )
+  const result = await publishSession({ configDir, stateDir, runId })
+  assert.equal(result.published, true)
+  assert.equal(result.row.title, '来自 run 的标题')
+  assert.equal(result.row.model, 'custom-local:m')
+})
+
+test('publishSession reports an unknown runId instead of guessing', { skip }, async () => {
+  const { configDir, stateDir } = fixture()
+  const result = await publishSession({ configDir, stateDir, runId: 'wb-nope' })
+  assert.deepEqual([result.published, result.reason], [false, 'unknown-run-id'])
+})

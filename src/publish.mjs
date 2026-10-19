@@ -153,6 +153,14 @@ function appendPublished(stateDir, entry) {
 export async function publishSession(input) {
   const stateDir = input.stateDir ?? resolveStateDir()
   const refuse = (reason, extra = {}) => ({ published: false, reason, sessionId: input.sessionId, ...extra })
+  // A run id is the friendlier selector: the caller already holds it from a dispatch.
+  if (!input.sessionId && input.runId) {
+    const run = findRunByRunId(stateDir, input.runId)
+    if (!run) return refuse('unknown-run-id', { runId: input.runId })
+    if (typeof run.sessionId !== 'string') return refuse('run-has-no-session-id', { runId: input.runId, state: run.state })
+    input = { ...input, sessionId: run.sessionId, project: input.project ?? run.projectSlug }
+  }
+  if (!input.sessionId) return refuse('sessionId-or-runId-required')
   if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(input.sessionId)) return refuse('invalid-session-id')
   const transcript = findSessionFile({ configDir: input.configDir, sessionId: input.sessionId, project: input.project })
   if (!transcript) return refuse('session-not-found')
@@ -259,6 +267,17 @@ export async function publishSession(input) {
       /* already closed */
     }
   }
+}
+
+/**
+ * Find a run journal by its run id.
+ * @param {string} stateDir
+ * @param {string} runId
+ * @returns {any | undefined}
+ */
+function findRunByRunId(stateDir, runId) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(runId)) return undefined
+  return readJson(join(stateDir, 'runs', `${runId}.json`))
 }
 
 /**

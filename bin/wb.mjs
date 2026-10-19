@@ -84,10 +84,9 @@ Environment:
  * @param {Record<string, string | boolean>} flags
  */
 async function dispatch(toolName, flags) {
-  if (typeof flags.workspace !== 'string') throw new Error('--workspace is required')
   if (typeof flags.task !== 'string') throw new Error('--task is required')
   const started = await call(toolName, {
-    workspace: flags.workspace,
+    workspace: typeof flags.workspace === 'string' ? flags.workspace : process.cwd(),
     task: flags.task,
     ...(typeof flags.model === 'string' ? { model: flags.model } : {}),
     ...(typeof flags['max-turns'] === 'string' ? { maxTurns: Number(flags['max-turns']) } : {}),
@@ -181,10 +180,11 @@ try {
     }
     case 'publish': {
       const flags = parseFlags(argv.slice(1))
-      if (typeof flags.session !== 'string') throw new Error('--session is required')
+      if (typeof flags.session !== 'string' && typeof flags.run !== 'string') throw new Error('--session or --run is required')
       print(
         await call('wb_publish_session', {
-          sessionId: flags.session,
+          ...(typeof flags.session === 'string' ? { sessionId: flags.session } : {}),
+          ...(typeof flags.run === 'string' ? { runId: flags.run } : {}),
           ...(typeof flags.title === 'string' ? { title: flags.title } : {}),
           ...(typeof flags.project === 'string' ? { project: flags.project } : {}),
         }),
