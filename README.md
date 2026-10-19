@@ -150,7 +150,7 @@ node bin/wb.mjs unpublish --session <sessionId>    # 只删自己插的那两行
 ```
 
 工具：`wb_publish_session` / `wb_unpublish_session` / `wb_list_published`。
-`publish` 也接受 `--run <runId>`，直接从派发台账解析 sessionId。派发时加 `publishToApp: true`（CLI 是 `--publish`），跑完会**自动**发布，结果记在运行的 `publishResult` 字段里——发布失败不会改写运行的终态。
+`publish` 也接受 `--run <runId>`，直接从派发台账解析 sessionId。**默认就会发布**：派发跑完自动登记，结果记在运行的 `publishResult` 字段里，发布失败不会改写运行的终态。要**不**污染 App 列表就显式传 `publishToApp: false`（CLI 是 `--no-publish`），此时只写转录、不进 App。
 
 > **工作区归属 = DSH 会话当前的工作目录**（不是写死的路径）。省略 `workspace` 时插件每次调用都会向 `workingDirectory` 服务要当前目录，所以你在 DSH 里 `cd` 到哪，WorkBuddy 就在哪开工；解析不到就报错，不会退回 harness 安装目录。`workspace` 只在你需要**故意**换目录时显式传。
 >

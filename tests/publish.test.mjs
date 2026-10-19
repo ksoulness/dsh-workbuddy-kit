@@ -276,3 +276,10 @@ test('getRun publishes a terminal run that never recorded a publish', { skip }, 
   assert.equal(again.publishResult.published, true)
   assert.equal(readRow(configDir, SESSION).row.id, SESSION)
 })
+
+test('publishing defaults on and can be turned off explicitly', async () => {
+  const { resolvePublishFlag } = await import('../src/publish.mjs')
+  assert.equal(resolvePublishFlag(undefined), true)
+  assert.equal(resolvePublishFlag(true), true)
+  assert.equal(resolvePublishFlag(false), false)
+})

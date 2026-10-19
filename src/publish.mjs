@@ -108,6 +108,18 @@ export function normalizeCwd(value) {
 }
 
 /**
+ * Whether a dispatch should also register itself in the desktop app index.
+ *
+ * Default is ON: the point of this kit is that a dispatched conversation shows
+ * up where the user already looks. alse is the explicit opt-out.
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+export function resolvePublishFlag(value) {
+  return value !== false
+}
+
+/**
  * Compact, list-friendly title. The desktop sidebar truncates around 50
  * characters, so a long prompt would swallow the row.
  * @param {string | undefined} source

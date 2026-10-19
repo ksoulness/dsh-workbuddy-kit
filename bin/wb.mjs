@@ -64,8 +64,8 @@ const HELP = `dsh-workbuddy-kit CLI
   dwb publish --session ID [--title T] [--project P]   make a CLI session visible in the app
   dwb unpublish --session ID [--force]
   dwb published
-  dwb review [--workspace DIR] --task TEXT [--wait SECONDS] [--archive] [--publish]
-  dwb run    [--workspace DIR] --task TEXT [--wait SECONDS] [--archive] [--publish]
+  dwb review [--workspace DIR] --task TEXT [--wait SECONDS] [--archive] [--no-publish]
+  dwb run    [--workspace DIR] --task TEXT [--wait SECONDS] [--archive] [--no-publish]
   dwb wait --run RUNID [--timeout-ms N]
   dwb get --run RUNID
   dwb cancel --run RUNID
@@ -93,7 +93,7 @@ async function dispatch(toolName, flags) {
     ...(typeof flags['add-dir'] === 'string' ? { addDirs: [flags['add-dir']] } : {}),
     ...(typeof flags['permission-mode'] === 'string' ? { permissionMode: flags['permission-mode'] } : {}),
     ...(flags['skip-permissions'] === true ? { skipPermissions: true } : {}),
-    ...(flags.publish === true ? { publishToApp: true } : {}),
+    ...(flags['no-publish'] === true ? { publishToApp: false } : {}),
   })
   print({ started })
   let run = started

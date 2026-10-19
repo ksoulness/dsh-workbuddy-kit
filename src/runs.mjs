@@ -17,7 +17,7 @@ import { join } from 'node:path'
 import { buildInvocation, isProcessAlive, runInvocation, terminateTree, WRITE_TOOLS } from './cli.mjs'
 import { discover, projectSlug } from './discover.mjs'
 import { flattenContent, summarizeSessionFile } from './parse.mjs'
-import { publishSession } from './publish.mjs'
+import { publishSession, resolvePublishFlag } from './publish.mjs'
 import { ensureStateDir, loadRun, listRuns, openSink, resolveStateDir, runPaths, saveRun, writeJsonAtomic } from './store.mjs'
 
 /** Terminal run states. */
@@ -281,7 +281,7 @@ export async function startRun(input, deps = {}) {
     stopReason: null,
     stateSource: 'observation',
     authorizationBasis: input.authorizationBasis ?? 'explicit-user-request',
-    publishToApp: input.publishToApp === true,
+    publishToApp: resolvePublishFlag(input.publishToApp),
     idempotencyKey: input.idempotencyKey ?? null,
     cliVersion: discovery.appVersion ?? null,
     assistantText: '',

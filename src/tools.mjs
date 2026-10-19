@@ -13,7 +13,7 @@
  */
 
 import { automationHealth, getAutomationRuns, listAutomations } from './automations.mjs'
-import { publishSession, readPublishedLedger, unpublishSession } from './publish.mjs'
+import { publishSession, readPublishedLedger, resolvePublishFlag, unpublishSession } from './publish.mjs'
 import { PERMISSION_MODES } from './cli.mjs'
 import { discover, resolveConfigDir } from './discover.mjs'
 import { cancelRun, getRun, listAllRuns, startRun, waitRun, TERMINAL_STATES } from './runs.mjs'
@@ -261,7 +261,7 @@ const sessionTools = [
         publishToApp: {
           type: 'boolean',
           description:
-            'After the run finishes, also insert its index row so the conversation shows up in the desktop WorkBuddy app (same workspace as the dispatch target). Defaults to false; undone by wb_unpublish_session.',
+            'Also insert the index row so the conversation shows up in the desktop WorkBuddy app, under the same workspace the run used. Defaults to true; pass false to keep it out of the app list. Undone by wb_unpublish_session.',
         },
       },
       required: ['task'],
@@ -281,7 +281,7 @@ const sessionTools = [
           idempotencyKey: args.idempotencyKey,
           sessionId: args.sessionId,
           addDirs: args.addDirs,
-          publishToApp: args.publishToApp === true,
+          publishToApp: resolvePublishFlag(args.publishToApp),
         },
         { env: ctx.env, stateDir: ctx.stateDir },
       )
@@ -308,7 +308,7 @@ const sessionTools = [
         publishToApp: {
           type: 'boolean',
           description:
-            'After the run finishes, also insert its index row so the conversation shows up in the desktop WorkBuddy app (same workspace as the dispatch target). Defaults to false; undone by wb_unpublish_session.',
+            'Also insert the index row so the conversation shows up in the desktop WorkBuddy app, under the same workspace the run used. Defaults to true; pass false to keep it out of the app list. Undone by wb_unpublish_session.',
         },
       },
       required: ['task'],
@@ -324,7 +324,7 @@ const sessionTools = [
           maxTurns: args.maxTurns,
           idempotencyKey: args.idempotencyKey,
           addDirs: args.addDirs,
-          publishToApp: args.publishToApp === true,
+          publishToApp: resolvePublishFlag(args.publishToApp),
         },
         { env: ctx.env, stateDir: ctx.stateDir },
       )
