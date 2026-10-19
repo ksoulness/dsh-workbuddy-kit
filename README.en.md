@@ -12,6 +12,20 @@ A local kit that closes the loop between "DSH plans" and "WorkBuddy executes". T
 - **stdio MCP server** (`dsh-workbuddy-mcp`, usable from any MCP client)
 
 Both behave identically because they call the same `src/tools.mjs`.
+## Plugin, skill, or MCP server?
+
+Four shapes, one shared src/tools.mjs, so behaviour is identical; what differs is **who consumes it** and **how it is installed**:
+
+| Shape | Files | Install | What it gives you | Restart needed? |
+| --- | --- | --- | --- | --- |
+| **DSH plugin** (the main artifact) | plugin/index.mjs + cordis.patch.yml | dsh plugin --profile <profile> add . | Registers the 18 wb_* tools on ctx.tools, callable from DSH | **Yes** — the tool table is snapshotted at boot |
+| **Skill** (bundled, optional) | skills/delegate-to-workbuddy/SKILL.md | copy into <DSH_HOME>/agents-home/skills/ | Tells the agent when to delegate, how to wait for a terminal state, how to check the evidence, how to archive by exact id | No — hot-loaded |
+| **MCP stdio server** | mcp/server.mjs | add to any MCP client config | Same tools for non-DSH clients (Claude, Codex, your own) | No |
+| **CLI** | in/wb.mjs | 
+ode bin/wb.mjs … or 
+pm i -g | Manual checks and scripting, no client at all | No |
+
+**The plugin is capability (tools); the skill is conduct (when and in what order to use them).** The plugin stands alone; the skill is meaningless without it. Install the plugin if you only want tools; add the skill when you want the agent to follow the dispatch → wait → verify → archive discipline by itself.
 
 ## What problem it solves
 

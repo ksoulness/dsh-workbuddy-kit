@@ -12,6 +12,20 @@
 - **stdio MCP 服务**（`dsh-workbuddy-mcp`，任何 MCP 客户端可用）
 
 两者行为完全一致，因为它们调用的是同一份 `src/tools.mjs`。
+## 这是插件、技能，还是 MCP 服务？
+
+四个形态，共用同一张 src/tools.mjs，所以行为一致；区别是**谁在用**和**怎么装**：
+
+| 形态 | 文件 | 怎么装 | 作用 | 改完要重启吗 |
+| --- | --- | --- | --- | --- |
+| **DSH 插件**（主体） | plugin/index.mjs + cordis.patch.yml | dsh plugin --profile <profile> add . | 把 18 个 wb_* 注册进 ctx.tools，在 DSH 里直接调用 | **要**（工具表在启动时快照） |
+| **技能**（附带，可选） | skills/delegate-to-workbuddy/SKILL.md | 拷到 <DSH_HOME>/agents-home/skills/ | 教 agent 何时派发、怎么等终态、怎么复核证据、怎么按 ID 归档 | 不要（热加载） |
+| **MCP stdio 服务** | mcp/server.mjs | 写进任意 MCP 客户端配置 | 给非 DSH 的客户端（Claude / Codex / 自研）用同一套工具 | 不要 |
+| **CLI** | in/wb.mjs | 
+ode bin/wb.mjs … 或 
+pm i -g | 手工验证、脚本化，不接任何客户端 | 不要 |
+
+**插件 = 能力（工具），技能 = 行为指南（什么时候用、按什么顺序用）。** 插件可以单独用；技能离开插件没有意义。只想要工具就装插件；想让 agent 自觉按「派发 → 等终态 → 复核 → 归档」的规矩办事，再叠加技能。
 
 ## 解决什么问题
 
@@ -66,7 +80,7 @@ DSH ❯ wb_start_review { workspace:"E:\\Code\\demo",
       wb_wait_run { runId }      → state:"succeeded", stopReason:"end_turn", toolCalls:3, durationMs:22485
       （assistantText 里就是 "DWB-ACCEPT-9F3A，位于第 3 行"，自己去文件对一遍）
       wb_archive_session { sessionId:"<uuid>" }
-      → archived:true, bytes:15124, sha256:a0c6cc74…, target:…\\session-archive\\2026-10-19\\e-Code-demo\\
+      → archived:true, bytes:15124, sha256:a0c6cc74…, target:…\\session-archive\\<date>\\e-Code-demo\\
 ```
 
 拿到的不是「已完成」四个字，而是：结论 + 工具调用次数 + 真实 sessionId + 归档摘要。
@@ -210,7 +224,7 @@ node bin/wb.mjs unpublish --session <sessionId>    # 只删自己插的那两行
 - ✅ 委派真实产出：WorkBuddy 按任务在 `E:\Code\demo` 写出 `CHEATSHEET.md`，其中 5 条命令逐字核对全部命中源文档（`README.md:71/72/85/94/95`）；另一次运行由 `workspaceChanges` 抓到新增 `demo-workspace-change.md`（`addedCount: 1`）；
 - ✅ 跟随 DSH 工作目录：同一会话在 E:\Code\acme-app 时省略 workspace → 落在 E:\Code\acme-app；把 DSH cwd 切到 E:\Code\dsh-workbuddy-kit 后再派发 → 落在 E:\Code\dsh-workbuddy-kit（projectSlug: e-Code-dsh-workbuddy-kit），没有写死路径；
 - ✅ 诚实的失败样本：跨 `--add-dir` 目录读取被拦（即使 `-y`），运行层仍 `succeeded` 但零改动 —— 证明「终态 ≠ 完成」，必须看 `workspaceChanges` / 文件；
-- ✅ 桌面调度器真实读取：6 条生效 + 3 条软删、1110 次运行（1015 成功 / 95 失败，成功率 0.9144）、失败码分布与本机 WorkBuddy 界面一致；
+- ✅ 桌面调度器真实读取：6 条生效 + 3 条软删、累计 1000+ 次运行（成功率约 0.91）、失败码分布与桌面 App 界面一致；
 - ✅ `dsh plugin --profile web add .` 装进本机 profile，`dsh --profile web --dump-config` 出现 `dsh-workbuddy-kit` 行。
 
 未验证：其他 WorkBuddy 版本 / 其他平台的路径、`--acp` 与 `--serve` 通道、`move` 归档对桌面端索引的影响。
