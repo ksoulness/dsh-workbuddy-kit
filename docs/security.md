@@ -39,6 +39,14 @@
 
 `move` 模式会移动厂商转录，属于显式的、可逆的破坏性操作；桌面端的「已归档」索引不会被本工具包修改。
 
+## 调度器只读
+
+桌面调度器（`workbuddy.db` 的三张 automation 表）只用 `readOnly: true` 打开。理由不是洁癖：桌面进程持有内存中的调度状态，直写 sqlite 会让它的界面与库不一致，甚至把下一次触发时间算错。
+
+- 不写、不删、不改任何调度行；
+- 任务 prompt 是用户的私有长文本，默认只返回 `promptBytes`；显式 `includePrompt: true` 也截断到 2000 字符；
+- 运行历史只做聚合（成功率、失败码计数），不把 `thread_title` 全文倒出来（默认 300 字符预览，可关）。
+
 ## 进程与文件
 
 - 只从 `<configDir>`（只读）、`<stateDir>`（本工具包）、`<configDir>/session-archive`（归档目标）三处读写；

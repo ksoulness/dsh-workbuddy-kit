@@ -12,6 +12,7 @@
  * @module dsh-workbuddy-kit/src/tools
  */
 
+import { automationHealth, getAutomationRuns, listAutomations } from './automations.mjs'
 import { PERMISSION_MODES } from './cli.mjs'
 import { discover, resolveConfigDir } from './discover.mjs'
 import { cancelRun, getRun, listAllRuns, startRun, waitRun, TERMINAL_STATES } from './runs.mjs'
@@ -125,8 +126,8 @@ function authenticationSignal(runs) {
   return { authenticated: null, evidence: null }
 }
 
-/** Every tool this kit exposes. */
-export const tools = [
+/** Dispatcher, session, and archive tools (they run or inspect agent sessions). */
+const sessionTools = [
   tool({
     name: 'wb_doctor',
     description:
@@ -427,6 +428,81 @@ export const tools = [
     },
   }),
 ]
+
+/**
+ * Desktop-scheduler tools: they read the WorkBuddy app's own SQLite scheduler
+ * (`automations` / `automation_runs` / `automation_runtime_state`) read-only.
+ * Nothing here dispatches an agent or writes scheduler state.
+ */
+const schedulerTools = [
+  tool({
+    name: 'wb_list_automations',
+    description:
+      'List the desktop WorkBuddy scheduler: scheduled tasks with status, soft-delete flag, schedule (RRULE), next run, last run outcome, model, permission mode, workspace and push channels. Reads workbuddy.db read-only; task prompts are excluded unless includePrompt is true.',
+    parameters: {
+      type: 'object',
+      properties: {
+        includeDeleted: { type: 'boolean', description: 'Include soft-deleted rows (deleted_at set, status may still read ACTIVE).' },
+        includePrompt: { type: 'boolean', description: 'Include a bounded prompt preview per task (default false).' },
+        limit: { type: 'integer', description: 'Maximum tasks to return (default 50, max 200).' },
+      },
+      additionalProperties: false,
+    },
+    handler: async (args, ctx) =>
+      listAutomations({
+        env: ctx.env,
+        configDir: ctx.configDir,
+        includeDeleted: args.includeDeleted === true,
+        includePrompt: args.includePrompt === true,
+        limit: args.limit,
+      }),
+  }),
+
+  tool({
+    name: 'wb_get_automation_runs',
+    description:
+      'Read the run history of one scheduled task (by exact id or name substring): status, timestamp, success flag, failure code, and per-task totals with failure-code counts. Read-only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        automationId: { type: 'string', description: 'Exact automation id.' },
+        name: { type: 'string', description: 'Name substring, used when automationId is omitted.' },
+        limit: { type: 'integer', description: 'Maximum runs to return (default 20, max 200).' },
+        failuresOnly: { type: 'boolean', description: 'Only return runs with result_success = 0.' },
+        includeTitle: { type: 'boolean', description: 'Include a bounded thread-title preview (default true).' },
+      },
+      additionalProperties: false,
+    },
+    handler: async (args, ctx) =>
+      getAutomationRuns({
+        env: ctx.env,
+        configDir: ctx.configDir,
+        automationId: args.automationId,
+        name: args.name,
+        limit: args.limit,
+        failuresOnly: args.failuresOnly === true,
+        includeTitle: args.includeTitle !== false,
+      }),
+  }),
+
+  tool({
+    name: 'wb_automation_health',
+    description:
+      'Scheduler-level health: live vs soft-deleted tasks, total/succeeded/failed runs with a success rate, failure-code breakdown, per-task run counts, and tasks whose next_run_at is already overdue. Read-only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        limit: { type: 'integer', description: 'Maximum tasks in the per-task breakdown (default 20).' },
+      },
+      additionalProperties: false,
+    },
+    handler: async (args, ctx) =>
+      automationHealth({ env: ctx.env, configDir: ctx.configDir, limit: args.limit }),
+  }),
+]
+
+/** Every tool this kit exposes. */
+export const tools = [...sessionTools, ...schedulerTools]
 
 /**
  * Look up one tool by name.

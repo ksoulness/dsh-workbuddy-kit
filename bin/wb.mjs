@@ -58,6 +58,9 @@ const HELP = `dsh-workbuddy-kit CLI
   dwb projects                        WorkBuddy project directories
   dwb sessions [--project P] [--workspace DIR] [--limit N]
   dwb session --id ID [--project P]
+  dwb automations [--all] [--prompt] [--limit N]   desktop scheduler (read-only)
+  dwb automation-runs (--id ID | --name X) [--limit N] [--failures]
+  dwb automation-health
   dwb review --workspace DIR --task TEXT [--wait SECONDS] [--archive]
   dwb run    --workspace DIR --task TEXT [--wait SECONDS] [--archive]
   dwb wait --run RUNID [--timeout-ms N]
@@ -139,6 +142,35 @@ try {
           ...(typeof flags.limit === 'string' ? { limit: Number(flags.limit) } : {}),
         }),
       )
+      break
+    }
+    case 'automations': {
+      const flags = parseFlags(argv.slice(1))
+      print(
+        await call('wb_list_automations', {
+          ...(flags.all === true ? { includeDeleted: true } : {}),
+          ...(flags.prompt === true ? { includePrompt: true } : {}),
+          ...(typeof flags.limit === 'string' ? { limit: Number(flags.limit) } : {}),
+        }),
+      )
+      break
+    }
+    case 'automation-runs': {
+      const flags = parseFlags(argv.slice(1))
+      if (typeof flags.id !== 'string' && typeof flags.name !== 'string') throw new Error('--id or --name is required')
+      print(
+        await call('wb_get_automation_runs', {
+          ...(typeof flags.id === 'string' ? { automationId: flags.id } : {}),
+          ...(typeof flags.name === 'string' ? { name: flags.name } : {}),
+          ...(typeof flags.limit === 'string' ? { limit: Number(flags.limit) } : {}),
+          ...(flags.failures === true ? { failuresOnly: true } : {}),
+        }),
+      )
+      break
+    }
+    case 'automation-health': {
+      const flags = parseFlags(argv.slice(1))
+      print(await call('wb_automation_health', typeof flags.limit === 'string' ? { limit: Number(flags.limit) } : {}))
       break
     }
     case 'review':

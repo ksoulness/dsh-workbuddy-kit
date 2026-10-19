@@ -28,7 +28,21 @@ terminal: succeeded | failed | cancelled | unknown
 - `transcript`：进程没了，但会话转录里有完成记录（恢复）；
 - `process-exit`：进程没了也没有完成记录 → `unknown`，**不当作成功**。
 
-## 为什么台账放外面
+## 两条读路径：会话文件 vs 桌面调度器
+
+| 你想知道的 | 数据在哪 | 谁在读 |
+| --- | --- | --- |
+| 某次派发/对话发生了什么 | `<configDir>/projects/<slug>/<sessionId>.jsonl` | `wb_list_sessions` / `wb_read_session` |
+| 定时任务是什么、跑没跑 | `<configDir>/workbuddy.db` 的 `automations` / `automation_runs` / `automation_runtime_state` | `wb_list_automations` / `wb_get_automation_runs` / `wb_automation_health` |
+
+调度器这一路是**纯读**：`DatabaseSync(path, { readOnly: true })`。WAL 模式下只读连接不会打扰正在运行的桌面 App，也不需要停它。
+
+两个容易踩的语义点：
+
+- 软删除的行 `status` 仍是 `ACTIVE`，活性由 `deleted_at` 决定 → 输出 `live` / `softDeleted`，`overdue` 只统计 `live` 行；
+- `automation_runs` 没有自增主键，只有 `thread_id`；"每组最后一次"用 `rowid in (select max(rowid) … group by automation_id)` 取，别用 `id`。
+
+
 
 WorkBuddy 的数据目录是厂商资产：`settings.json`、`workbuddy.db`、`sessions/`、`session-archive/`。本工具包：
 

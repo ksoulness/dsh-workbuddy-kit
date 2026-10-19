@@ -35,6 +35,11 @@ D:\Program Files\WorkBuddy\resources\app.asar.unpacked\cli\
 | `wb_list_runs` | 本机派发台账 |
 | `wb_read_session` | 直接读对话记录（消息、工具调用、模型），自己复核 |
 | `wb_archive_session` | 按完整 sessionId 归档：带 SHA-256 的副本 + manifest + 索引 |
+| `wb_list_automations` | **桌面 App 调度器**：定时任务清单（节奏/下次触发/最近结果/模型/权限/推送） |
+| `wb_get_automation_runs` | 某个定时任务的运行历史、成功率、失败码 |
+| `wb_automation_health` | 调度器体检：生效 vs 软删、总运行/失败率、失败码分布、过期未触发 |
+
+调度器三个工具**只读** `workbuddy.db`（`automations` / `automation_runs` / `automation_runtime_state`），不写任何调度状态。
 
 ## 最后效果
 
@@ -100,6 +105,31 @@ node bin/wb.mjs sessions --limit 5
 - **会话落在 `<configDir>/projects/<工程名>/<sessionId>.jsonl`**，工程名是工作目录的映射（`E:\Code\acme-app` → `e-Code-acme-app`）。归档就是对这个文件做带摘要的副本。
 - **归档不动厂商数据**：默认 `copy`，WorkBuddy 自己的会话列表不变；`move` 是显式的可逆选项。
 
+## 桌面 App 的调度器（定时任务）
+
+定时任务**不在文件里**，在 `~/.workbuddy/workbuddy.db` 的三张表（`automations.db` 是 0 字节的遗留空文件）：
+
+| 表 | 内容 |
+| --- | --- |
+| `automations` | 任务定义：名字、完整 prompt、状态、`rrule`、`next_run_at`、`last_run_at`、模型、权限模式、工作区、推送渠道、`deleted_at` |
+| `automation_runs` | 每次触发：`thread_id`、状态、`result_success`、`failure_code`、`reason_code`、标题 |
+| `automation_runtime_state` | `running`、`last_error` |
+
+```sh
+node bin/wb.mjs automations              # 生效中的任务
+node bin/wb.mjs automations --all        # 含软删除
+node bin/wb.mjs automations --prompt     # 附带 prompt 预览（默认不返回）
+node bin/wb.mjs automation-runs --name "研究流水线监护" --limit 5 --failures
+node bin/wb.mjs automation-health
+```
+
+两个必须知道的坑（实测）：
+
+- **软删除行 `status` 仍是 `ACTIVE`**：真正的活性信号是 `deleted_at`。本工具包输出 `softDeleted` 与 `live` 两个显式字段，避免把僵尸任务当活跃任务。
+- **prompt 全文就在库里**（很长、很私人）：默认只返回 `promptBytes`，要预览得显式 `includePrompt: true`，且截断到 2000 字符。
+
+读法是 `readOnly: true` 打开 SQLite（WAL 读者不影响正在运行的桌面 App）。**不做写操作**：暂停/改 RRULE/新建/删除都要走桌面自己的 IPC（`\\.\pipe\wbipc-…`）或 UI，直写 sqlite 会让界面与库不一致。
+
 ## 与已有项目的关系
 
 搜过一圈，方向不同，没有一个在做「DSH 派活给 WorkBuddy 并验收」：
@@ -127,9 +157,10 @@ node bin/wb.mjs sessions --limit 5
 - ✅ 真实实施派发 → `succeeded` / `end_turn`，工作区里确实多出 `hello.txt`，内容与任务要求逐字一致（`DWB-RUN-OK`）；
 - ✅ 真实归档两次：`archived:true`，15124 / 7973 字节，`sha256:a0c6cc74…` / `9887ba08…`；
 - ✅ `wb_doctor` 正确识别安装路径、自带 Node、`liteBundleOnly`、自定义模型；
-- ✅ `node --test` 38/38：流解析、工程名映射、schema 子集、MCP 握手、归档的全部拒绝分支；
+- ✅ `node --test` 47/47：流解析、工程名映射、schema 子集、MCP 握手、归档的全部拒绝分支、调度器只读读取（含软删除与失败码）；
 - ✅ MCP stdio 真实握手（`initialize` + `tools/list`）；
-- ✅ 在真实 cordis 里挂载插件（`inject: ['tools']`）→ 12 个工具全部通过 `dsh-tools` 自己的 `assertObjectJsonSchema` / `assertSupportedJsonSchema` 校验（`npm run verify`）；
+- ✅ 在真实 cordis 里挂载插件（`inject: ['tools']`）→ 15 个工具全部通过 `dsh-tools` 自己的 `assertObjectJsonSchema` / `assertSupportedJsonSchema` 校验（`npm run verify`）；
+- ✅ 桌面调度器真实读取：6 条生效 + 3 条软删、1110 次运行（1015 成功 / 95 失败，成功率 0.9144）、失败码分布与本机 WorkBuddy 界面一致；
 - ✅ `dsh plugin --profile web add .` 装进本机 profile，`dsh --profile web --dump-config` 出现 `dsh-workbuddy-kit` 行。
 
 未验证：其他 WorkBuddy 版本 / 其他平台的路径、`--acp` 与 `--serve` 通道、`move` 归档对桌面端索引的影响。
@@ -142,6 +173,7 @@ src/cli.mjs         组装无头调用、spawn、终止进程树
 src/parse.mjs       stream-json 与 session JSONL 解析
 src/runs.mjs        派发台账、终态判定、恢复与取消
 src/sessions.mjs    会话枚举/读取/精确归档
+src/automations.mjs 桌面调度器只读（automations / runs / runtime_state）
 src/tools.mjs       唯一工具表（两个前门共用）
 plugin/index.mjs    原生 DSH 插件
 mcp/server.mjs      stdio MCP 服务（零依赖）

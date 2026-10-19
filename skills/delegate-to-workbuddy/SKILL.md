@@ -33,6 +33,22 @@ description: 当需要把有明确范围的本机任务交给 WorkBuddy（腾讯
 6) wb_archive_session { sessionId, project }  → archived:true + sha256
 ```
 
+## 顺带能回答的问题：WorkBuddy 定时任务怎么了
+
+用户问「定时任务跑没跑 / 为什么没触发 / 最近有没有失败」时，不要去翻日志文件，直接读桌面调度器（只读）：
+
+```text
+wb_automation_health                      → 生效 vs 软删、总运行、失败率、失败码、过期未触发
+wb_list_automations { includeDeleted }    → 节奏、next_run、最近一次、模型、权限、推送
+wb_get_automation_runs { automationId, failuresOnly }  → 单任务运行历史与失败码
+```
+
+两条铁律：
+
+- **活性看 `deleted_at`，不看 `status`**：软删除行的 `status` 仍是 `ACTIVE`（本工具包已给出 `live` / `softDeleted` 两个字段）。
+- **prompt 是用户的私有内容**：默认不返回；只有用户明确要看时才 `includePrompt: true`，并且不要把正文大段复制进回答。
+- 只读。**禁止**为了“修一下”而改数据库或新增/删除任务——那要走桌面 UI 或它的 IPC。
+
 ## 任务文本模板
 
 **只读核对**
