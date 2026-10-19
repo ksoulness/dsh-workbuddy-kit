@@ -1,5 +1,7 @@
 # DSH WorkBuddy Kit
 
+[中文](README.md) · [English](README.en.md)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Node](https://img.shields.io/badge/node-%3E%3D22.19-brightgreen.svg)](https://nodejs.org) [![MCP](https://img.shields.io/badge/MCP-stdio-8A2BE2.svg)](https://modelcontextprotocol.io)
 
 > **DeepSeek Harness 负责想清楚并验收，本机 WorkBuddy 负责动手做：一次派发、等到终态、自己复核证据、按完整 sessionId 归档。**
