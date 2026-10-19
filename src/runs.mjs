@@ -593,16 +593,31 @@ export function summarizeJournalStream(streamFile) {
 
 /**
  * Read one run, reconciling a stale journal on the way.
+ *
+ * When a run is terminal, asked to publish, and never recorded a publish (the
+ * spawn chain can be gone by the time reconcile discovers the verdict), the
+ * publish is done here so the desktop listing does not silently depend on who
+ * observed the exit.
+ *
  * @param {string} runId
  * @param {{ stateDir?: string, discovery?: any, env?: NodeJS.ProcessEnv }} [deps]
- * @returns {any}
+ * @returns {Promise<any>}
  */
-export function getRun(runId, deps = {}) {
+export async function getRun(runId, deps = {}) {
   const { discovery, stateDir } = resolveContext(deps)
   const run = loadRun(stateDir, runId)
   if (!run) throw new Error(`unknown runId: ${runId}`)
-  const reconciled = reconcileRun(run, discovery)
+  let reconciled = reconcileRun(run, discovery)
   if (reconciled !== run) saveRun(stateDir, reconciled)
+  if (
+    TERMINAL_STATES.has(reconciled.state) &&
+    reconciled.publishToApp === true &&
+    !reconciled.publishResult &&
+    typeof reconciled.sessionId === 'string'
+  ) {
+    await publishRunToApp({ stateDir, configDir: discovery.configDir, run: reconciled })
+    reconciled = loadRun(stateDir, runId) ?? reconciled
+  }
   return { ...reconciled, assistantText: boundText(reconciled.assistantText) }
 }
 
@@ -617,10 +632,10 @@ export async function waitRun(input, deps = {}) {
   const pollMs = input.pollMs ?? 500
   const startedAt = Date.now()
   const deadline = startedAt + timeoutMs
-  let run = getRun(input.runId, deps)
+  let run = await getRun(input.runId, deps)
   while (!TERMINAL_STATES.has(run.state) && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, pollMs))
-    run = getRun(input.runId, deps)
+    run = await getRun(input.runId, deps)
   }
   return {
     ...run,

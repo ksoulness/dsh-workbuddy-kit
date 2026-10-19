@@ -109,12 +109,12 @@ test('publishSession inserts the row the app list needs', { skip }, async () => 
   assert.equal(readPublishedLedger(stateDir).length, 1)
 })
 
-test('publishSession refuses a session the app already indexes', { skip }, async () => {
+test('publishing twice is a no-op success', { skip }, async () => {
   const { configDir, stateDir } = fixture()
   const first = await publishSession({ configDir, stateDir, sessionId: SESSION })
   assert.equal(first.published, true)
   const second = await publishSession({ configDir, stateDir, sessionId: SESSION })
-  assert.deepEqual([second.published, second.reason], [false, 'session-already-indexed'])
+  assert.deepEqual([second.published, second.alreadyIndexed], [true, true])
 })
 
 test('publishSession refuses unknown, traversal, and cwd-less sessions', { skip }, async () => {
@@ -244,4 +244,35 @@ test('buildTitle keeps titles short and list-friendly', async () => {
   assert.ok(title.length <= 60, `title too long: ${title.length}`)
   assert.ok(title.endsWith('…'))
   assert.equal(buildTitle('第一行\n第二行', 'abcdef123'), '【DSH 派发】第一行')
+})
+
+test('getRun publishes a terminal run that never recorded a publish', { skip }, async () => {
+  const { configDir, stateDir } = fixture()
+  const { getRun } = await import('../src/runs.mjs')
+  const runId = 'wb-reconciled-publish'
+  const runDir = join(stateDir, 'runs')
+  mkdirSync(runDir, { recursive: true })
+  writeFileSync(
+    join(runDir, `${runId}.json`),
+    JSON.stringify({
+      runId,
+      kind: 'run',
+      state: 'succeeded',
+      stateSource: 'transcript',
+      stopReason: 'recovered-from-transcript',
+      sessionId: SESSION,
+      projectSlug: 'e-Code-demo',
+      workspace: 'E:/Code/demo',
+      promptPreview: '被 reconcile 发现的任务',
+      publishToApp: true,
+      assistantText: 'ok',
+    }),
+    'utf8',
+  )
+  const run = await getRun(runId, { stateDir, discovery: { configDir, found: true } })
+  assert.equal(run.publishResult.published, true)
+  assert.equal(readRow(configDir, SESSION).row.id, SESSION)
+  const again = await getRun(runId, { stateDir, discovery: { configDir, found: true } })
+  assert.equal(again.publishResult.published, true)
+  assert.equal(readRow(configDir, SESSION).row.id, SESSION)
 })

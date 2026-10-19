@@ -231,9 +231,18 @@ export async function publishSession(input) {
     return refuse('cannot-open-database-for-write', { dbPath, error: String(error?.message ?? error) })
   }
   try {
-    const existing = db.prepare('select id, transport, source_mode from sessions where id = ?').get(input.sessionId)
+    const existing = db.prepare('select id, cwd, user_id, title, status, transport, source_mode from sessions where id = ?').get(input.sessionId)
     if (existing) {
-      return refuse('session-already-indexed', { dbPath, existing, hint: 'the desktop app already lists this session' })
+      // The goal state is "the app lists this session"; reaching it twice is not
+      // an error, it just means a retry is a no-op.
+      return {
+        published: true,
+        alreadyIndexed: true,
+        sessionId: input.sessionId,
+        dbPath,
+        row: existing,
+        note: 'already indexed; nothing to write',
+      }
     }
     const columns = Object.keys(row)
     const placeholders = columns.map(() => '?').join(', ')

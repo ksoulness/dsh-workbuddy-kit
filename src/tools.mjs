@@ -360,7 +360,8 @@ const sessionTools = [
       required: ['runId'],
       additionalProperties: false,
     },
-    handler: async (args, ctx) => summarizeRun(getRun(args.runId, { env: ctx.env, stateDir: ctx.stateDir }), { full: true }),
+    handler: async (args, ctx) =>
+      summarizeRun(await getRun(args.runId, { env: ctx.env, stateDir: ctx.stateDir }), { full: true }),
   }),
 
   tool({
