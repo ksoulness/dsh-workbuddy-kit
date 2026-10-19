@@ -17,6 +17,7 @@ import { join } from 'node:path'
 import { buildInvocation, isProcessAlive, runInvocation, terminateTree, WRITE_TOOLS } from './cli.mjs'
 import { discover, projectSlug } from './discover.mjs'
 import { flattenContent, summarizeSessionFile } from './parse.mjs'
+import { publishSession } from './publish.mjs'
 import { ensureStateDir, loadRun, listRuns, openSink, resolveStateDir, runPaths, saveRun, writeJsonAtomic } from './store.mjs'
 
 /** Terminal run states. */
@@ -280,6 +281,7 @@ export async function startRun(input, deps = {}) {
     stopReason: null,
     stateSource: 'observation',
     authorizationBasis: input.authorizationBasis ?? 'explicit-user-request',
+    publishToApp: input.publishToApp === true,
     idempotencyKey: input.idempotencyKey ?? null,
     cliVersion: discovery.appVersion ?? null,
     assistantText: '',
@@ -372,6 +374,11 @@ export async function startRun(input, deps = {}) {
 
   finished
     .then(({ exitCode, signal }) => finalizeRun({ stateDir, discovery, runId, exitCode, signal }))
+    .then(async (finalRun) => {
+      if (finalRun && finalRun.publishToApp === true && finalRun.sessionId) {
+        await publishRunToApp({ stateDir, configDir: discovery.configDir, run: finalRun })
+      }
+    })
     .catch((error) => {
       const failed = loadRun(stateDir, runId) ?? run
       saveRun(stateDir, {
@@ -393,6 +400,32 @@ export async function startRun(input, deps = {}) {
     assistantText: boundText(current.assistantText),
     waitHint: TERMINAL_STATES.has(current.state) ? null : 'call wait_run with this runId',
   }
+}
+
+/**
+ * Publish a finished run's session into the desktop app index and record the
+ * outcome on the journal. A publish failure never changes the run verdict: the
+ * work happened, the listing is a separate, observable step.
+ * @param {{ stateDir: string, configDir: string, run: any }} input
+ * @returns {Promise<any>}
+ */
+export async function publishRunToApp(input) {
+  const { stateDir, configDir, run } = input
+  if (typeof run.sessionId !== 'string') return undefined
+  let publishResult
+  try {
+    publishResult = await publishSession({
+      configDir,
+      stateDir,
+      sessionId: run.sessionId,
+      project: run.projectSlug,
+    })
+  } catch (error) {
+    publishResult = { published: false, reason: 'publish-threw', error: String(error?.message ?? error) }
+  }
+  const latest = loadRun(stateDir, run.runId) ?? run
+  saveRun(stateDir, { ...latest, publishResult })
+  return publishResult
 }
 
 /**

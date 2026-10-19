@@ -100,6 +100,8 @@ export function summarizeRun(run, options = {}) {
     ...(run.hint ? { hint: run.hint } : {}),
     ...(run.cancelSkipped ? { cancelSkipped: run.cancelSkipped } : {}),
     ...(run.termination ? { termination: run.termination } : {}),
+    ...(run.publishToApp ? { publishToApp: true } : {}),
+    ...(run.publishResult ? { publishResult: run.publishResult } : {}),
   }
   if (options.full) {
     base.assistantText = run.assistantText ?? ''
@@ -237,6 +239,11 @@ const sessionTools = [
         idempotencyKey: { type: 'string', description: 'Reuse the same key to get the same runId instead of a duplicate dispatch.' },
         sessionId: { type: 'string', description: 'Optional explicit session id; omit to let WorkBuddy create a fresh one.' },
         addDirs: { type: 'array', items: { type: 'string' }, description: 'Extra directories the agent may read.' },
+        publishToApp: {
+          type: 'boolean',
+          description:
+            'After the run finishes, also insert its index row so the conversation shows up in the desktop WorkBuddy app (same workspace as the dispatch target). Defaults to false; undone by wb_unpublish_session.',
+        },
       },
       required: ['task'],
       additionalProperties: false,
@@ -255,6 +262,7 @@ const sessionTools = [
           idempotencyKey: args.idempotencyKey,
           sessionId: args.sessionId,
           addDirs: args.addDirs,
+          publishToApp: args.publishToApp === true,
         },
         { env: ctx.env, stateDir: ctx.stateDir },
       )
@@ -278,6 +286,11 @@ const sessionTools = [
         maxTurns: { type: 'integer', description: 'Optional cap on agentic turns.' },
         idempotencyKey: { type: 'string', description: 'Reuse the same key to get the same runId.' },
         addDirs: { type: 'array', items: { type: 'string' }, description: 'Extra directories the agent may read.' },
+        publishToApp: {
+          type: 'boolean',
+          description:
+            'After the run finishes, also insert its index row so the conversation shows up in the desktop WorkBuddy app (same workspace as the dispatch target). Defaults to false; undone by wb_unpublish_session.',
+        },
       },
       required: ['task'],
       additionalProperties: false,
@@ -292,6 +305,7 @@ const sessionTools = [
           maxTurns: args.maxTurns,
           idempotencyKey: args.idempotencyKey,
           addDirs: args.addDirs,
+          publishToApp: args.publishToApp === true,
         },
         { env: ctx.env, stateDir: ctx.stateDir },
       )

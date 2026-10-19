@@ -108,6 +108,22 @@ export function normalizeCwd(value) {
 }
 
 /**
+ * Compact, list-friendly title. The desktop sidebar truncates around 50
+ * characters, so a long prompt would swallow the row.
+ * @param {string | undefined} source
+ * @param {string} sessionId
+ * @returns {string}
+ */
+export function buildTitle(source, sessionId) {
+  const prefix = '【DSH 派发】'
+  const firstLine = typeof source === 'string' ? source.split('\n')[0].trim() : ''
+  if (firstLine === '') return `${prefix}${sessionId.slice(0, 8)}`
+  const body = firstLine.replace(/^【DSH 派发】/, '').trim()
+  const clipped = body.length <= 48 ? body : `${body.slice(0, 47)}…`
+  return `${prefix}${clipped}`
+}
+
+/**
  * Read the publish ledger.
  * @param {string} stateDir
  * @returns {any[]}
@@ -181,7 +197,7 @@ export async function publishSession(input) {
   const userId = resolveUserId({ configDir: input.configDir, DatabaseSync: sqlite.DatabaseSync })
   const now = Date.now()
   const run = findRunForSession(stateDir, input.sessionId)
-  const title = (input.title ?? run?.promptPreview?.split('\n')[0] ?? summary.firstPrompt ?? '').slice(0, 120) || `DSH 派发 ${input.sessionId.slice(0, 8)}`
+  const title = buildTitle(input.title ?? run?.promptPreview ?? summary.firstPrompt, input.sessionId)
   const createdAt = Date.parse(run?.createdAt ?? '') || now
   const updatedAt = Date.parse(run?.terminalAt ?? run?.updatedAt ?? '') || now
   const bytes = readFileSync(transcript).byteLength

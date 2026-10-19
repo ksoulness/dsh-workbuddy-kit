@@ -100,7 +100,7 @@ test('publishSession inserts the row the app list needs', { skip }, async () => 
   assert.equal(result.row.cwd, 'E:/Code/demo')
   assert.equal(result.row.user_id, USER)
   assert.equal(result.row.status, 'completed')
-  assert.equal(result.row.title, '查一下演示')
+  assert.equal(result.row.title, '【DSH 派发】查一下演示')
   const { row, usage } = readRow(configDir, SESSION)
   assert.equal(row.id, SESSION)
   assert.ok(usage.size > 0)
@@ -168,7 +168,7 @@ test('publishSession resolves a runId to its session', { skip }, async () => {
   )
   const result = await publishSession({ configDir, stateDir, runId })
   assert.equal(result.published, true)
-  assert.equal(result.row.title, '来自 run 的标题')
+  assert.equal(result.row.title, '【DSH 派发】来自 run 的标题')
   assert.equal(result.row.model, 'custom-local:m')
 })
 
@@ -176,4 +176,72 @@ test('publishSession reports an unknown runId instead of guessing', { skip }, as
   const { configDir, stateDir } = fixture()
   const result = await publishSession({ configDir, stateDir, runId: 'wb-nope' })
   assert.deepEqual([result.published, result.reason], [false, 'unknown-run-id'])
+})
+
+test('a run published on finish records the outcome on its journal', { skip }, async () => {
+  const { configDir, stateDir } = fixture()
+  const { finalizeRun, publishRunToApp } = await import('../src/runs.mjs')
+  const runId = 'wb-publish-on-finish'
+  const runDir = join(stateDir, 'runs')
+  mkdirSync(runDir, { recursive: true })
+  writeFileSync(
+    join(runDir, `${runId}.json`),
+    JSON.stringify({
+      runId,
+      kind: 'run',
+      state: 'running',
+      sessionId: SESSION,
+      projectSlug: 'e-Code-demo',
+      workspace: 'E:/Code/demo',
+      promptPreview: '查北京天气',
+      model: 'custom-local:m',
+      permissionMode: 'acceptEdits',
+      publishToApp: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      assistantText: '',
+      diagnostics: [],
+    }),
+    'utf8',
+  )
+  writeFileSync(
+    join(runDir, `${runId}.stream.jsonl`),
+    `${JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: 'ok', duration_ms: 5 })}\n`,
+    'utf8',
+  )
+  const discovery = { configDir, found: true }
+  const finalRun = finalizeRun({ stateDir, discovery, runId, exitCode: 0, signal: null })
+  assert.equal(finalRun.state, 'succeeded')
+  assert.equal(finalRun.publishToApp, true)
+  const publishResult = await publishRunToApp({ stateDir, configDir, run: finalRun })
+  assert.equal(publishResult.published, true)
+  const journal = JSON.parse(readFileSync(join(runDir, `${runId}.json`), 'utf8'))
+  assert.equal(journal.publishResult.published, true)
+  assert.equal(readRow(configDir, SESSION).row.id, SESSION)
+})
+
+test('a failed publish never rewrites the run verdict', { skip }, async () => {
+  const { configDir, stateDir } = fixture()
+  const { publishRunToApp } = await import('../src/runs.mjs')
+  const runDir = join(stateDir, 'runs')
+  mkdirSync(runDir, { recursive: true })
+  const run = { runId: 'wb-publish-fails', sessionId: 'missing-session', projectSlug: 'e-Code-demo', promptPreview: 'x', state: 'succeeded' }
+  writeFileSync(join(runDir, `${run.runId}.json`), JSON.stringify(run), 'utf8')
+  const result = await publishRunToApp({ stateDir, configDir, run })
+  assert.deepEqual([result.published, result.reason], [false, 'session-not-found'])
+  const journal = JSON.parse(readFileSync(join(runDir, `${run.runId}.json`), 'utf8'))
+  assert.equal(journal.state, 'succeeded')
+  assert.equal(journal.publishResult.published, false)
+})
+
+test('buildTitle keeps titles short and list-friendly', async () => {
+  const { buildTitle } = await import('../src/publish.mjs')
+  assert.equal(buildTitle('查北京天气', 'abcdef123'), '【DSH 派发】查北京天气')
+  assert.equal(buildTitle('', 'abcdef123'), '【DSH 派发】abcdef12')
+  assert.equal(buildTitle('【DSH 派发】已有前缀', 'abcdef123'), '【DSH 派发】已有前缀')
+  const long = 'x'.repeat(200)
+  const title = buildTitle(long, 'abcdef123')
+  assert.ok(title.length <= 60, `title too long: ${title.length}`)
+  assert.ok(title.endsWith('…'))
+  assert.equal(buildTitle('第一行\n第二行', 'abcdef123'), '【DSH 派发】第一行')
 })
