@@ -128,7 +128,37 @@ node bin/wb.mjs automation-health
 - **软删除行 `status` 仍是 `ACTIVE`**：真正的活性信号是 `deleted_at`。本工具包输出 `softDeleted` 与 `live` 两个显式字段，避免把僵尸任务当活跃任务。
 - **prompt 全文就在库里**（很长、很私人）：默认只返回 `promptBytes`，要预览得显式 `includePrompt: true`，且截断到 2000 字符。
 
-读法是 `readOnly: true` 打开 SQLite（WAL 读者不影响正在运行的桌面 App）。**不做写操作**：暂停/改 RRULE/新建/删除都要走桌面自己的 IPC（`\\.\pipe\wbipc-…`）或 UI，直写 sqlite 会让界面与库不一致。
+读法是 `readOnly: true` 打开 SQLite（WAL 读者不影响正在运行的桌面 App）。调度器**只读**：暂停/改 RRULE/新建/删除都要走桌面自己的 IPC 或 UI，直写会让界面与库不一致。
+
+## 让派发的会话出现在桌面 App 里（写库，可撤销）
+
+默认情况下 CLI 会话**不会**出现在桌面 App 的会话列表里：它只写 `projects/<slug>/<id>.jsonl`，不写 App 自己的索引。桌面列表的查询是：
+
+```sql
+SELECT … FROM sessions
+ WHERE transport = 'local' AND deleted_at IS NULL
+   AND (user_id = ? OR user_id = '')
+   AND id IN (…)
+```
+
+所以转录再完整，**没有那一行 `sessions` 记录就是不可见**。补上那一行（外加一行 `session_usage`）就会出现：
+
+```sh
+node bin/wb.mjs publish --session <sessionId> --title "【DSH 派发】…"
+node bin/wb.mjs published                          # 本工具包发布过哪些
+node bin/wb.mjs unpublish --session <sessionId>    # 只删自己插的那两行
+```
+
+工具：`wb_publish_session` / `wb_unpublish_session` / `wb_list_published`。
+
+写什么：一行 `sessions`（`id`、`cwd` 归一成 `E:/Code/x`、`user_id` 取当前登录用户、`title`、`status`、`created_at`/`updated_at`/`last_activity_at`、`transport='local'`、`source_mode='craft'`、`mode='craft'`、`model`）+ 一行 `session_usage`（`size` = 转录字节数）。**转录文件一个字节都不改。**
+
+安全边界：
+
+- 会话不存在、读不到 `cwd`、或库里已有该 id → **拒绝**并说明原因；
+- 每次插入记进 `<stateDir>/published.jsonl`；`unpublish` 只删账本里登记过的行，且不动其他会话行；
+- 建议先备份库（`docs/setup.md` 有一条实测命令）；
+- 手法不是本文独创：GitHub 上的 [`workbuddy-account-migrate`](https://github.com/xiaoliuzhuan666/workbuddy-account-migrate) 用同样方式（写 `sessions`/`session_usage` + 搬 `projects/<slug>/`）做跨账号会话复制，并明确写了「不写 sessions 行，客户端就找不到」。
 
 ## 与已有项目的关系
 

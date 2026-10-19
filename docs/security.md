@@ -66,3 +66,13 @@ state: succeeded 只说明**这次 CLI 运行干净结束**（stopReason: end_tu
 ## 责任边界
 
 本包不是腾讯、DeepSeek 官方产品。WorkBuddy/CodeBuddy 的行为、额度、条款由腾讯决定；模型读取的内容由所选提供商按其条款处理。本包只负责：把一次委派变成可观察、可复核、可归档的事件。
+
+## 发布到桌面 App 索引（唯一写库操作）
+
+`wb_publish_session` 会向 `workbuddy.db` 的 `sessions` / `session_usage` 各插一行，让 CLI 派发的会话出现在桌面 App 的会话列表里。这是本工具包**唯一**写厂商数据的路径。
+
+- 写前先备份：`Copy-Item workbuddy.db workbuddy.db.bak-<时间戳>`（本机库约 186 MB，拷贝几秒）；
+- 只插一行，事务提交，`PRAGMA busy_timeout=8000`，桌面 App 正在运行也能写；
+- 插了什么记进 `<stateDir>/published.jsonl`；`wb_unpublish_session` 只删自己插的行；
+- 不改转录、不删会话、不同步云端；
+- 桌面 App 若已打开，可能需要切一下会话列表或重启才会刷新。

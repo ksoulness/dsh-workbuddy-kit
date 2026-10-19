@@ -13,6 +13,7 @@
  */
 
 import { automationHealth, getAutomationRuns, listAutomations } from './automations.mjs'
+import { publishSession, readPublishedLedger, unpublishSession } from './publish.mjs'
 import { PERMISSION_MODES } from './cli.mjs'
 import { discover, resolveConfigDir } from './discover.mjs'
 import { cancelRun, getRun, listAllRuns, startRun, waitRun, TERMINAL_STATES } from './runs.mjs'
@@ -521,8 +522,77 @@ const schedulerTools = [
   }),
 ]
 
+/**
+ * Publishing tools: they insert (and remove) the desktop app's index row for a
+ * CLI session so the conversation shows up in the app's own list. This is the
+ * only write path into vendor state in the whole kit.
+ */
+const publishTools = [
+  tool({
+    name: 'wb_publish_session',
+    description:
+      'Make one CLI-dispatched session visible in the desktop WorkBuddy app by inserting its missing index row into workbuddy.db (sessions + session_usage). Writes vendor state, so it is explicit, single-session, refuses anything it cannot verify, and is undone by wb_unpublish_session. The transcript file is never modified.',
+    parameters: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: 'Exact session id (the CLI session you want the app to list).' },
+        project: { type: 'string', description: 'Optional WorkBuddy project directory name to disambiguate.' },
+        title: { type: 'string', description: 'Optional title override; defaults to the dispatched task summary.' },
+      },
+      required: ['sessionId'],
+      additionalProperties: false,
+    },
+    handler: async (args, ctx) =>
+      publishSession({
+        configDir: configDirOf(ctx),
+        stateDir: stateDirOf(ctx),
+        sessionId: args.sessionId,
+        project: args.project,
+        title: args.title,
+      }),
+  }),
+
+  tool({
+    name: 'wb_unpublish_session',
+    description:
+      'Remove the index row this kit inserted for a session. Deletes only the sessions/session_usage rows and only when the publish ledger shows this kit created them (unless force). The transcript stays on disk.',
+    parameters: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: 'Exact session id.' },
+        force: { type: 'boolean', description: 'Delete the row even if this kit has no publish record for it.' },
+      },
+      required: ['sessionId'],
+      additionalProperties: false,
+    },
+    handler: async (args, ctx) =>
+      unpublishSession({
+        configDir: configDirOf(ctx),
+        stateDir: stateDirOf(ctx),
+        sessionId: args.sessionId,
+        force: args.force === true,
+      }),
+  }),
+
+  tool({
+    name: 'wb_list_published',
+    description: 'List the sessions this kit has published into the desktop app index (its own ledger, read-only).',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+    handler: async (_args, ctx) => {
+      const stateDir = stateDirOf(ctx)
+      const entries = readPublishedLedger(stateDir)
+      return {
+        stateDir,
+        published: entries.filter((entry) => entry.unpublished !== true),
+        unpublished: entries.filter((entry) => entry.unpublished === true),
+        note: 'This is the kit ledger, not the app database; the app side is readable through wb_list_automations-style queries.',
+      }
+    },
+  }),
+]
+
 /** Every tool this kit exposes. */
-export const tools = [...sessionTools, ...schedulerTools]
+export const tools = [...sessionTools, ...schedulerTools, ...publishTools]
 
 /**
  * Look up one tool by name.

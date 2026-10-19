@@ -61,6 +61,9 @@ const HELP = `dsh-workbuddy-kit CLI
   dwb automations [--all] [--prompt] [--limit N]   desktop scheduler (read-only)
   dwb automation-runs (--id ID | --name X) [--limit N] [--failures]
   dwb automation-health
+  dwb publish --session ID [--title T] [--project P]   make a CLI session visible in the app
+  dwb unpublish --session ID [--force]
+  dwb published
   dwb review --workspace DIR --task TEXT [--wait SECONDS] [--archive]
   dwb run    --workspace DIR --task TEXT [--wait SECONDS] [--archive]
   dwb wait --run RUNID [--timeout-ms N]
@@ -176,6 +179,27 @@ try {
       print(await call('wb_automation_health', typeof flags.limit === 'string' ? { limit: Number(flags.limit) } : {}))
       break
     }
+    case 'publish': {
+      const flags = parseFlags(argv.slice(1))
+      if (typeof flags.session !== 'string') throw new Error('--session is required')
+      print(
+        await call('wb_publish_session', {
+          sessionId: flags.session,
+          ...(typeof flags.title === 'string' ? { title: flags.title } : {}),
+          ...(typeof flags.project === 'string' ? { project: flags.project } : {}),
+        }),
+      )
+      break
+    }
+    case 'unpublish': {
+      const flags = parseFlags(argv.slice(1))
+      if (typeof flags.session !== 'string') throw new Error('--session is required')
+      print(await call('wb_unpublish_session', { sessionId: flags.session, ...(flags.force === true ? { force: true } : {}) }))
+      break
+    }
+    case 'published':
+      print(await call('wb_list_published', {}))
+      break
     case 'review':
       await dispatch('wb_start_review', parseFlags(argv.slice(1)))
       break
