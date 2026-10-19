@@ -43,6 +43,25 @@ function configDirOf(ctx) {
 }
 
 /**
+ * Workspace for a dispatch.
+ *
+ * An explicit `workspace` always wins. Otherwise the caller's session working
+ * directory is used. Falling back to `process.cwd()` is deliberately *not*
+ * done: that is the harness install directory, and publishing a session there
+ * makes the desktop app grow a junk workspace next to the user's real one.
+ * @param {{ workspace?: string }} args
+ * @param {{ cwd?: string }} ctx
+ * @returns {string}
+ */
+function requireWorkspace(args, ctx) {
+  if (typeof args.workspace === 'string' && args.workspace.trim() !== '') return args.workspace
+  if (typeof ctx.cwd === 'string' && ctx.cwd.trim() !== '') return ctx.cwd
+  throw new Error(
+    'workspace is required: this composition did not expose a session working directory, so pass the absolute workspace path explicitly',
+  )
+}
+
+/**
  * Build one tool descriptor.
  * @param {{
  *   name: string,
@@ -252,7 +271,7 @@ const sessionTools = [
       const run = await startRun(
         {
           kind: 'run',
-          workspace: args.workspace ?? ctx.cwd ?? process.cwd(),
+          workspace: requireWorkspace(args, ctx),
           prompt: args.task,
           model: args.model,
           permissionMode: args.permissionMode,
@@ -299,7 +318,7 @@ const sessionTools = [
       const run = await startRun(
         {
           kind: 'review',
-          workspace: args.workspace ?? ctx.cwd ?? process.cwd(),
+          workspace: requireWorkspace(args, ctx),
           prompt: args.task,
           model: args.model,
           maxTurns: args.maxTurns,

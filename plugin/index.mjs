@@ -14,7 +14,7 @@ import { tools } from '../src/tools.mjs'
 export const name = 'dsh-workbuddy-kit'
 
 /** Services this plugin needs before `apply` runs. */
-export const inject = ['tools']
+export const inject = ['tools', 'workingDirectory']
 
 /**
  * Register the WorkBuddy tools for this composition.
@@ -29,7 +29,9 @@ export const inject = ['tools']
  */
 export function apply(ctx, config) {
   const allowed = Array.isArray(config?.tools) && config.tools.length > 0 ? new Set(config.tools) : null
-  const workingDirectory = ctx.get?.('workingDirectory')
+  // Cordis exposes services as context properties; `ctx.get(name)` is only a
+  // fallback for compositions that resolve services lazily.
+  const workingDirectory = ctx.workingDirectory ?? ctx.get?.('workingDirectory')
   for (const entry of tools) {
     if (allowed && !allowed.has(entry.name)) continue
     ctx.tools.register({
