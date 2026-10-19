@@ -21,7 +21,7 @@ node bin/wb.mjs doctor
 
 ```sh
 npm test          # 47 个用例，零依赖
-npm run verify    # 用 DSH 自带 dsh-tools 校验 15 个工具的注册契约
+npm run verify    # 用 DSH 自带 dsh-tools 校验 18 个工具的注册契约
 ```
 
 ## 3. 确认调度器可读（桌面 App 的定时任务）

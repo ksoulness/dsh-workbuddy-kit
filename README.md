@@ -11,6 +11,16 @@
 
 两者行为完全一致，因为它们调用的是同一份 `src/tools.mjs`。
 
+## 解决什么问题
+
+| 没有它的时候 | 有了它 |
+| --- | --- |
+| 想让 WorkBuddy 干活，只能把上下文、路径、要求手打一遍，还得自己盯着它跑完没有 | 一次派发拿到 `runId`，`wait_run` 拉到终态；`state` / `stopReason` / `toolCalls` / `workspaceChanges` 都是结构化字段，超时不算终态 |
+| 「它说做完了」= 做完了？ | 工具返回的是**证据**：git 前后对比、工具调用数、完整转录、sha256 归档副本；调用方自己复核才算完 |
+| 派出去的会话在桌面 App 里看不见，等于没发生过 | 默认自动登记进 App 索引，会话就出现在**同一个工作区**下（跟随 DSH 当前目录），点开就是完整对话 |
+| 想批量盯桌面 App 的定时任务，只能一个个点开看 | 三个只读工具直接读 `workbuddy.db`：任务清单、每次运行、成功率与失败码、逾期任务 |
+| 它的权限边界靠猜 | 实测过的矩阵写死在文档里：工作区内读写用 `acceptEdits`；跨目录读、`WebFetch`/`curl` 要 `bypassPermissions`；`WebSearch` 无头下不可用 |
+
 ## 它控制的是什么
 
 本机 WorkBuddy 桌面版（腾讯，实测 `5.8.3`）在自己的安装目录里**自带一个 CodeBuddy agent CLI**：
@@ -192,9 +202,9 @@ node bin/wb.mjs unpublish --session <sessionId>    # 只删自己插的那两行
 - ✅ 真实实施派发 → `succeeded` / `end_turn`，工作区里确实多出 `hello.txt`，内容与任务要求逐字一致（`DWB-RUN-OK`）；
 - ✅ 真实归档两次：`archived:true`，15124 / 7973 字节，`sha256:a0c6cc74…` / `9887ba08…`；
 - ✅ `wb_doctor` 正确识别安装路径、自带 Node、`liteBundleOnly`、自定义模型；
-- ✅ `node --test` 50/50：流解析、工程名映射、schema 子集、MCP 握手、归档的全部拒绝分支、调度器只读读取（含软删除与失败码）、git 侧改动证据；
+- ✅ `node --test` 65/65：流解析、工程名映射、schema 子集、MCP 握手、归档的全部拒绝分支、调度器只读读取（含软删除与失败码）、git 侧改动证据、发布/撤销/默认发布；
 - ✅ MCP stdio 真实握手（`initialize` + `tools/list`）；
-- ✅ 在真实 cordis 里挂载插件（`inject: ['tools']`）→ 15 个工具全部通过 `dsh-tools` 自己的 `assertObjectJsonSchema` / `assertSupportedJsonSchema` 校验（`npm run verify`）；
+- ✅ 在真实 cordis 里挂载插件（`inject: ['tools', 'workingDirectory']`）→ 18 个工具全部通过 `dsh-tools` 自己的 `assertObjectJsonSchema` / `assertSupportedJsonSchema` 校验（`npm run verify`）；
 - ✅ 委派真实产出：WorkBuddy 按任务在 `E:\Code\demo` 写出 `CHEATSHEET.md`，其中 5 条命令逐字核对全部命中源文档（`README.md:71/72/85/94/95`）；另一次运行由 `workspaceChanges` 抓到新增 `demo-workspace-change.md`（`addedCount: 1`）；
 - ✅ 跟随 DSH 工作目录：同一会话在 E:\Code\acme-app 时省略 workspace → 落在 E:\Code\acme-app；把 DSH cwd 切到 E:\Code\dsh-workbuddy-kit 后再派发 → 落在 E:\Code\dsh-workbuddy-kit（projectSlug: e-Code-dsh-workbuddy-kit），没有写死路径；
 - ✅ 诚实的失败样本：跨 `--add-dir` 目录读取被拦（即使 `-y`），运行层仍 `succeeded` 但零改动 —— 证明「终态 ≠ 完成」，必须看 `workspaceChanges` / 文件；

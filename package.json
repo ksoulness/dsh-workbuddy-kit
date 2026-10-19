@@ -5,11 +5,14 @@
   "keywords": [
     "deepseek-harness",
     "dsh",
+    "dsh-plugin",
     "workbuddy",
     "codebuddy",
     "agent",
     "delegation",
-    "mcp"
+    "mcp",
+    "mcp-server",
+    "automation"
   ],
   "type": "module",
   "main": "./plugin/index.mjs",
@@ -48,5 +51,13 @@
       "patch": "./cordis.patch.yml"
     }
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ksoulness/dsh-workbuddy-kit.git"
+  },
+  "homepage": "https://github.com/ksoulness/dsh-workbuddy-kit#readme",
+  "bugs": {
+    "url": "https://github.com/ksoulness/dsh-workbuddy-kit/issues"
+  }
 }
