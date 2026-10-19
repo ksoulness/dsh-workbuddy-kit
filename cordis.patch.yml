@@ -1,0 +1,10 @@
+# dsh-workbuddy-kit bundle layer.
+#
+# One insertion only: this bundle adds its own row and replaces no Harness
+# product row, no provider, and no sandbox/permission configuration.
+#
+# The row registers native DSH tools (wb_*) on ctx.tools. It starts no process
+# and touches no WorkBuddy state until a tool is actually called.
+- insert:
+    - id: dsh-workbuddy-kit
+      name: 'dsh-workbuddy-kit'

@@ -1,0 +1,52 @@
+{
+  "name": "dsh-workbuddy-kit",
+  "version": "0.1.0",
+  "description": "Let DeepSeek Harness drive a local Tencent WorkBuddy agent: dispatch a bounded task, wait for a terminal state, read the evidence, archive the exact session.",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "workbuddy",
+    "codebuddy",
+    "agent",
+    "delegation",
+    "mcp"
+  ],
+  "type": "module",
+  "main": "./plugin/index.mjs",
+  "exports": {
+    ".": "./plugin/index.mjs",
+    "./plugin": "./plugin/index.mjs",
+    "./mcp": "./mcp/server.mjs",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "dwb": "./bin/wb.mjs",
+    "dsh-workbuddy-mcp": "./mcp/server.mjs"
+  },
+  "files": [
+    "bin",
+    "cordis.patch.yml",
+    "docs",
+    "mcp",
+    "plugin",
+    "scripts",
+    "skills",
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.19"
+  },
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\"",
+    "doctor": "node bin/wb.mjs doctor",
+    "verify": "node scripts/verify-registration.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT"
+}
