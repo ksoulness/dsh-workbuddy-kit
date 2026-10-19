@@ -89,7 +89,20 @@ Then restart DSH — tools are snapshotted at boot, so adding or removing one ne
 }
 ```
 
-### C. Manual check, no client
+### C. Offline tarball (no network, no npm install)
+
+Every release ships dsh-workbuddy-kit-<version>.tgz containing in/ mcp/ plugin/ src/ docs/ skills/ scripts/ LICENSE README*:
+
+`sh
+npm pack                                  # or download it from the release
+npm i -g ./dsh-workbuddy-kit-0.1.0.tgz    # installs the dwb and dsh-workbuddy-mcp commands
+dwb doctor
+`
+
+No global install needed either: unpack it and run 
+ode package/bin/wb.mjs doctor.
+
+### D. Manual check, no client
 
 ```sh
 node bin/wb.mjs doctor

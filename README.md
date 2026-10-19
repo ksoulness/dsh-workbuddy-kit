@@ -114,7 +114,20 @@ dsh --profile web --dump-config | grep -n workbuddy
     args: ['E:\\Code\\dsh-workbuddy-kit\\mcp\\server.mjs']
 ```
 
-### C. 手工验证（不接任何客户端）
+### C. 离线 tarball（不联网、不装 npm 包）
+
+每次 Release 都附带 dsh-workbuddy-kit-<version>.tgz，内含 in/ mcp/ plugin/ src/ docs/ skills/ scripts/ LICENSE README*：
+
+`sh
+npm pack                                  # 或直接从 Release 下载
+npm i -g ./dsh-workbuddy-kit-0.1.0.tgz    # 拿到 dwb / dsh-workbuddy-mcp 两个命令
+dwb doctor
+`
+
+不装全局也行：解包后 
+ode package/bin/wb.mjs doctor 就能用。
+
+### D. 手工验证（不接任何客户端）
 
 ```sh
 node bin/wb.mjs doctor
