@@ -124,7 +124,8 @@ node bin/wb.mjs sessions --limit 5
 制作机（Windows、Node `v24.19.0`、WorkBuddy `5.8.3`、CLI `2.161.0`、DSH `0.2.1-alpha.2`）实测：
 
 - ✅ 真实只读派发 → `succeeded` / `end_turn` / 3 次工具调用 / 22.5s，`assistantText` 与工作区文件一致；
-- ✅ 真实归档：`archived:true`，15124 字节，`sha256:a0c6cc74…`；
+- ✅ 真实实施派发 → `succeeded` / `end_turn`，工作区里确实多出 `hello.txt`，内容与任务要求逐字一致（`DWB-RUN-OK`）；
+- ✅ 真实归档两次：`archived:true`，15124 / 7973 字节，`sha256:a0c6cc74…` / `9887ba08…`；
 - ✅ `wb_doctor` 正确识别安装路径、自带 Node、`liteBundleOnly`、自定义模型；
 - ✅ `node --test` 38/38：流解析、工程名映射、schema 子集、MCP 握手、归档的全部拒绝分支；
 - ✅ MCP stdio 真实握手（`initialize` + `tools/list`）；
