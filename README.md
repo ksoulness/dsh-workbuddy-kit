@@ -89,7 +89,33 @@ DSH ❯ wb_start_review { workspace:"E:\\Code\\demo",
 
 前置：本机已装 WorkBuddy 桌面版；Node ≥ 22.19（跑 DSH 用，本工具包自身零依赖）。
 
-### A. 原生 DSH 工具（推荐）
+### A. 丢给 AI（推荐，零手工）
+
+把下面这段原样发给任何有终端权限的 AI（DSH / Claude / Codex 都行）：
+
+``text
+请安装并验收 https://github.com/ksoulness/dsh-workbuddy-kit 这个 DSH 插件。
+
+先读 https://raw.githubusercontent.com/ksoulness/dsh-workbuddy-kit/main/AGENTS.md 并按它执行；读不到就按下面四步：
+
+1. 前置检查：node -v 需 >= 22.19；git、dsh 可用；确认本机存在 WorkBuddy 的 CLI 目录
+   （Windows: C:\Program Files\WorkBuddy\resources\app.asar.unpacked\cli\bin）。
+2. 安装：git clone 仓库后 dsh plugin --profile <我的profile> add .，
+   再用 dsh --profile <profile> --dump-config 确认出现 dsh-workbuddy-kit 行。
+3. 验收：
+pm test（应 pass 65 / fail 0）、
+pm run verify（应 18 tools / 0 failures）、
+   
+ode bin/wb.mjs doctor（应 found true）。
+4. 报告：用表格列出每一步的命令、真实输出、结论；最后告诉我是否需要重启 DSH。
+
+铁律：不要提权、不要 sudo、不要写 workbuddy.db、不要改我的 models.json 和会话文件、
+不要调用 wb_publish_session、不要在没有亲眼看到输出时声称成功。失败就贴原始报错。
+``
+
+装完记得**重启 DSH**（工具表在启动时快照）；技能是热加载的，改了立刻生效。
+
+### B. 原生 DSH 工具（手工）
 
 ```sh
 git clone <this repo> dsh-workbuddy-kit
@@ -100,7 +126,7 @@ dsh --profile web --dump-config | grep -n workbuddy
 
 重启 DSH（Web 端刷新页面）后，`wb_*` 就是原生工具。
 
-### B. MCP stdio（任何 MCP 客户端）
+### C. MCP stdio（任何 MCP 客户端）
 
 `cordis.patch.yml` 里追加一行，不要在同一个 profile 同时开 A 和 B（工具名会重复）：
 
@@ -114,7 +140,7 @@ dsh --profile web --dump-config | grep -n workbuddy
     args: ['E:\\Code\\dsh-workbuddy-kit\\mcp\\server.mjs']
 ```
 
-### C. 离线 tarball（不联网、不装 npm 包）
+### D. 离线 tarball（不联网、不装 npm 包）
 
 每次 Release 都附带 dsh-workbuddy-kit-<version>.tgz，内含 in/ mcp/ plugin/ src/ docs/ skills/ scripts/ LICENSE README*：
 
@@ -127,7 +153,7 @@ dwb doctor
 不装全局也行：解包后 
 ode package/bin/wb.mjs doctor 就能用。
 
-### D. 手工验证（不接任何客户端）
+### E. 手工验证（不接任何客户端）
 
 ```sh
 node bin/wb.mjs doctor

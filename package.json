@@ -1,6 +1,6 @@
 {
   "name": "dsh-workbuddy-kit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Let DeepSeek Harness drive a local Tencent WorkBuddy agent: dispatch a bounded task, wait for a terminal state, read the evidence, archive the exact session.",
   "keywords": [
     "deepseek-harness",
@@ -37,7 +37,8 @@
     "src",
     "LICENSE",
     "README.md",
-    "README.en.md"
+    "README.en.md",
+    "AGENTS.md"
   ],
   "engines": {
     "node": ">=22.19"

@@ -65,7 +65,33 @@ The session is now in the desktop app's sidebar, in the same workspace, with the
 
 ## Install
 
-### A. Native DSH tools (recommended)
+### A. Hand it to an AI (recommended, zero manual steps)
+
+Paste this message into any AI with shell access (DSH, Claude, Codex — all fine):
+
+``text
+Please install and verify the DSH plugin at https://github.com/ksoulness/dsh-workbuddy-kit.
+
+First read https://raw.githubusercontent.com/ksoulness/dsh-workbuddy-kit/main/AGENTS.md and follow it.
+If that is unreachable, do these four steps:
+
+1. Preflight: node -v must be >= 22.19; git and dsh must exist; confirm the WorkBuddy CLI directory
+   exists (Windows: C:\Program Files\WorkBuddy\resources\app.asar.unpacked\cli\bin).
+2. Install: git clone the repo, then `dsh plugin --profile <my-profile> add .`,
+   then confirm the dsh-workbuddy-kit row appears in `dsh --profile <profile> --dump-config`.
+3. Verify: `npm test` (expect pass 65 / fail 0), `npm run verify` (expect 18 tools / 0 failures),
+   `node bin/wb.mjs doctor` (expect found true).
+4. Report: a table of each command, the real output and a verdict; end by telling me whether DSH
+   needs a restart.
+
+Rules: no privilege escalation, no sudo, do not write workbuddy.db, do not modify my models.json or
+session files, do not call wb_publish_session, and never claim success you have not observed. Paste the
+raw error when something fails.
+``
+
+After installing, **restart DSH** (the tool table is snapshotted at boot). Skills are hot-loaded.
+
+### B. Native DSH tools (manual)
 
 ```sh
 git clone https://github.com/ksoulness/dsh-workbuddy-kit
@@ -76,7 +102,7 @@ npm run verify        # 18/18 registration contract against the DSH you actually
 
 Then restart DSH — tools are snapshotted at boot, so adding or removing one needs a restart.
 
-### B. MCP stdio
+### C. MCP stdio
 
 ```json
 {
@@ -89,7 +115,7 @@ Then restart DSH — tools are snapshotted at boot, so adding or removing one ne
 }
 ```
 
-### C. Offline tarball (no network, no npm install)
+### D. Offline tarball (no network, no npm install)
 
 Every release ships dsh-workbuddy-kit-<version>.tgz containing in/ mcp/ plugin/ src/ docs/ skills/ scripts/ LICENSE README*:
 
@@ -102,7 +128,7 @@ dwb doctor
 No global install needed either: unpack it and run 
 ode package/bin/wb.mjs doctor.
 
-### D. Manual check, no client
+### E. Manual check, no client
 
 ```sh
 node bin/wb.mjs doctor
